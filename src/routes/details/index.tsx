@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import {
   ActivityIndicator,
   ImageBackground,
@@ -12,6 +13,7 @@ import { type ContentItem } from "../../api/content";
 import { useContentDetail } from "../../hooks/useContentDetail";
 import type { AppLocale } from "../../i18n/locale";
 import { colors, radius } from "../../styles/tokens";
+import { cacheSavedDetail } from "../../lib/offline-content";
 export function DetailScreen({
   item,
   saved,
@@ -25,8 +27,11 @@ export function DetailScreen({
   onToggleSaved: () => void;
   locale: AppLocale;
 }) {
-  const { detail, loading } = useContentDetail(item, locale);
+  const { detail, loading } = useContentDetail(item, locale, saved);
   const display = detail ?? item;
+  useEffect(() => {
+    if (saved && detail) void cacheSavedDetail(item, detail);
+  }, [detail, item, saved]);
   const mapUrl =
     detail?.latitude !== undefined && detail.longitude !== undefined
       ? `https://www.google.com/maps/search/?api=1&query=${detail.latitude},${detail.longitude}`

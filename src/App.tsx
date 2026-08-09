@@ -9,6 +9,7 @@ import {
   Pressable,
 } from "react-native";
 import * as Linking from "expo-linking";
+import * as Notifications from "expo-notifications";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import type { ContentItem, ContentType } from "./api/content";
@@ -19,12 +20,24 @@ import { ExploreScreen } from "./routes/home";
 import { MoreScreen } from "./routes/more";
 import { SavedScreen } from "./routes/saved";
 import { SearchSheet } from "./components/search/SearchSheet";
-import { loadSavedContent, saveSavedContent } from "./lib/saved-content";
+import {
+  addSavedContent,
+  loadSavedContent,
+  mergeSavedContent,
+  removeSavedContent,
+  saveSavedContent,
+} from "./lib/saved-content";
 import { colors, shadows } from "./styles/tokens";
-import { LoginScreen, ProfileScreen } from "./components/account/AccountScreen";
+import {
+  ChangePasswordScreen,
+  LoginScreen,
+  ProfileScreen,
+} from "./components/account/AccountScreen";
 import { ChatScreen } from "./components/chat/ChatScreen";
 import { ContactScreen, FaqScreen, LanguageScreen } from "./routes/contact";
-import { navLabels, type AppLocale } from "./i18n/locale";
+import { NotificationSettingsScreen } from "./routes/notifications";
+import { NearbyPlacesScreen } from "./routes/nearby";
+import { isRtl, navLabels, type AppLocale } from "./i18n/locale";
 import {
   loadAuthSession,
   loadLocale,
@@ -32,16 +45,30 @@ import {
   saveLocale,
   type AuthSession,
 } from "./lib/storage";
+import {
+  cancelSavedEventReminder,
+  disablePushNotifications,
+  scheduleSavedEventReminder,
+} from "./lib/notifications";
 import { AppQueryProvider } from "./lib/query-client";
+import {
+  defaultNotificationPreferences,
+  getMobileState,
+  replaceMobileSavedContent,
+  type NotificationPreferences,
+} from "./api/mobile";
 
 type Tab = "explore" | "discover" | "saved" | "more";
 type Panel =
   | "chat"
   | "login"
   | "profile"
+  | "change-password"
   | "faqs"
   | "contact"
   | "language"
+  | "notifications"
+  | "nearby"
   | "search";
 type NavigationAction = Tab | "assistant";
 
@@ -71,12 +98,38 @@ export function AppRoot() {
   const [panel, setPanel] = useState<Panel | null>(null);
   const [browseType, setBrowseType] = useState<ContentType | null>(null);
   const [locale, setLocale] = useState<AppLocale>("en");
+  const [notificationPreferences, setNotificationPreferences] =
+    useState<NotificationPreferences>(defaultNotificationPreferences);
 
   useEffect(() => {
     void loadSavedContent().then(setSaved);
     void loadAuthSession().then(setAuth);
     void loadLocale().then(setLocale);
   }, []);
+
+  useEffect(() => {
+    if (!auth) {
+      setNotificationPreferences(defaultNotificationPreferences);
+      return;
+    }
+    void (async () => {
+      try {
+        const [remote, local] = await Promise.all([
+          getMobileState(auth),
+          loadSavedContent(),
+        ]);
+        const merged = mergeSavedContent(local, remote.savedContent);
+        setSaved(merged);
+        setNotificationPreferences(remote.notificationPreferences);
+        await saveSavedContent(merged);
+        if (merged.length !== remote.savedContent.length) {
+          await replaceMobileSavedContent(auth, merged);
+        }
+      } catch {
+        // Offline mode keeps local bookmarks and notification choices usable.
+      }
+    })();
+  }, [auth]);
 
   const savedIds = useMemo(
     () => new Set(saved.map((item) => `${item.type}-${item.id}`)),
@@ -127,6 +180,34 @@ export function AppRoot() {
   }, []);
 
   useEffect(() => {
+    const redirect = (response: Notifications.NotificationResponse | null) => {
+      const url = response?.notification.request.content.data?.url;
+      if (typeof url === "string") openDeepLink(url);
+    };
+    void Notifications.getLastNotificationResponseAsync().then(redirect);
+    const subscription =
+      Notifications.addNotificationResponseReceivedListener(redirect);
+    return () => subscription.remove();
+  }, []);
+
+  useEffect(() => {
+    if (
+      !notificationPreferences.enabled ||
+      !notificationPreferences.savedEventReminders
+    )
+      return;
+    void Promise.all(
+      saved
+        .filter((item) => item.type === "event")
+        .map((item) => scheduleSavedEventReminder(item).catch(() => undefined)),
+    );
+  }, [
+    notificationPreferences.enabled,
+    notificationPreferences.savedEventReminders,
+    saved,
+  ]);
+
+  useEffect(() => {
     const subscription = BackHandler.addEventListener(
       "hardwareBackPress",
       () => {
@@ -158,6 +239,31 @@ export function AppRoot() {
         ? current.filter((entry) => `${entry.type}-${entry.id}` !== key)
         : [...current, item];
       void saveSavedContent(next);
+      if (auth)
+        void replaceMobileSavedContent(auth, next).catch(() => undefined);
+      if (next.some((entry) => `${entry.type}-${entry.id}` === key)) {
+        void addSavedContent(item).then((cached) => {
+          setSaved((latest) => {
+            const hydrated = latest.map((entry) =>
+              `${entry.type}-${entry.id}` === key ? cached : entry,
+            );
+            void saveSavedContent(hydrated);
+            if (auth)
+              void replaceMobileSavedContent(auth, hydrated).catch(
+                () => undefined,
+              );
+            return hydrated;
+          });
+        });
+        if (
+          notificationPreferences.enabled &&
+          notificationPreferences.savedEventReminders
+        )
+          void scheduleSavedEventReminder(item).catch(() => undefined);
+      } else {
+        void removeSavedContent(item);
+        void cancelSavedEventReminder(item).catch(() => undefined);
+      }
       return next;
     });
   };
@@ -190,11 +296,15 @@ export function AppRoot() {
         session={auth}
         onBack={() => setPanel(null)}
         onSignedOut={() => {
+          void disablePushNotifications(auth);
           setAuth(null);
           void saveAuthSession(null);
           setPanel(null);
         }}
+        onChangePassword={() => setPanel("change-password")}
       />
+    ) : panel === "change-password" && auth ? (
+      <ChangePasswordScreen session={auth} onBack={() => setPanel("profile")} />
     ) : panel === "faqs" ? (
       <FaqScreen locale={locale} onBack={() => setPanel(null)} />
     ) : panel === "contact" ? (
@@ -204,6 +314,20 @@ export function AppRoot() {
         locale={locale}
         onBack={() => setPanel(null)}
         onSelect={changeLocale}
+      />
+    ) : panel === "notifications" ? (
+      <NotificationSettingsScreen
+        session={auth}
+        locale={locale}
+        preferences={notificationPreferences}
+        onBack={() => setPanel(null)}
+        onChange={setNotificationPreferences}
+      />
+    ) : panel === "nearby" ? (
+      <NearbyPlacesScreen
+        locale={locale}
+        onBack={() => setPanel(null)}
+        onOpen={open}
       />
     ) : detail ? (
       <DetailScreen
@@ -243,6 +367,8 @@ export function AppRoot() {
         onOpenFaqs={() => setPanel("faqs")}
         onOpenContact={() => setPanel("contact")}
         onOpenLanguage={() => setPanel("language")}
+        onOpenNotifications={() => setPanel("notifications")}
+        onOpenNearby={() => setPanel("nearby")}
         signedIn={Boolean(auth)}
       />
     );
@@ -251,7 +377,9 @@ export function AppRoot() {
     <AppQueryProvider>
       <SafeAreaView style={styles.root}>
         <StatusBar style="dark" />
-        <View style={styles.content}>{screen}</View>
+        <View style={[styles.content, isRtl(locale) && styles.rtl]}>
+          {screen}
+        </View>
         {!panel && !detail && !browseType ? (
           <Pressable
             accessibilityLabel="Search Visit Kurdistan"
@@ -334,6 +462,7 @@ export function AppRoot() {
 const styles = StyleSheet.create({
   root: { backgroundColor: colors.white, flex: 1 },
   content: { flex: 1 },
+  rtl: { direction: "rtl" },
   navigationShell: {
     backgroundColor: colors.white,
     paddingBottom: 10,

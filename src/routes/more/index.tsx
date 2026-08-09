@@ -8,6 +8,8 @@ export function MoreScreen({
   onOpenFaqs,
   onOpenContact,
   onOpenLanguage,
+  onOpenNotifications,
+  onOpenNearby,
   signedIn,
   locale,
 }: {
@@ -16,6 +18,8 @@ export function MoreScreen({
   onOpenFaqs: () => void;
   onOpenContact: () => void;
   onOpenLanguage: () => void;
+  onOpenNotifications: () => void;
+  onOpenNearby: () => void;
   signedIn: boolean;
   locale: AppLocale;
 }) {
@@ -52,6 +56,18 @@ export function MoreScreen({
         title="Contact Visit Kurdistan"
         subtitle="Send a message to the team"
         onPress={onOpenContact}
+      />
+      <MenuRow
+        icon="⌖"
+        title="Nearby places"
+        subtitle="See places around you on a map"
+        onPress={onOpenNearby}
+      />
+      <MenuRow
+        icon="◌"
+        title="Travel notifications"
+        subtitle="Choose event reminders and updates"
+        onPress={onOpenNotifications}
       />
       <MenuRow
         icon="◎"

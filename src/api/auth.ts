@@ -68,3 +68,26 @@ export async function logout(refreshToken: string): Promise<void> {
     // Removing device credentials remains the correct local logout outcome.
   }
 }
+
+export async function changePassword(
+  session: AuthSession,
+  currentPassword: string,
+  password: string,
+): Promise<void> {
+  const response = await fetch(`${API_URL}/auth/change-password`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${session.accessToken}`,
+    },
+    body: JSON.stringify({ currentPassword, password }),
+  });
+  if (!response.ok) {
+    throw new Error(
+      response.status === 401
+        ? "Your current password is incorrect."
+        : "We could not change your password.",
+    );
+  }
+}

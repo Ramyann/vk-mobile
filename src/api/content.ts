@@ -17,6 +17,10 @@ export interface ContentItem {
   slug: string;
   label?: string;
   date?: string;
+  /** Original CMS image URL when the on-device copy is used offline. */
+  remoteImage?: string | null;
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface ContentDetail extends ContentItem {
@@ -126,6 +130,8 @@ const mapItem = (record: RecordValue, type: ContentType): ContentItem => ({
       : typeof record.startAt === "string"
         ? record.startAt
         : undefined,
+  latitude: number(record.latitude ?? record.lat),
+  longitude: number(record.longitude ?? record.lng),
 });
 
 const number = (value: unknown): number | undefined => {

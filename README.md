@@ -16,6 +16,13 @@ npm run ios
 Before a production build, set both `EXPO_PUBLIC_API_URL` and
 `EXPO_PUBLIC_WEBSITE_URL` to the matching production services.
 
+For Android's native Nearby map, create a restricted Google Maps Android API
+key for `com.visitkurdistan.mobile` and its build SHA-1 fingerprint, then add
+it as `android.config.googleMaps.apiKey` in `app.json` before making a new
+internal build. Apple Maps needs no API key on iOS. The map, location access,
+and remote push notifications require a development or preview build; they are
+not fully available in Expo Go.
+
 ## Initial product scope
 
 - Explore: CMS-driven hero, featured destinations, packages, events and stories
@@ -87,4 +94,5 @@ before leaving the application.
 
 The visual system mirrors the website: deep purple `#36196D`, ivory cream,
 lime highlights, editorial type hierarchy and 28–36px rounded image cards.
+
 # vk-mobile

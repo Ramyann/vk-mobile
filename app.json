@@ -9,7 +9,10 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.visitkurdistan.mobile"
+      "bundleIdentifier": "com.visitkurdistan.mobile",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.visitkurdistan.mobile",
@@ -24,6 +27,30 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": ["expo-secure-store", "expo-font"]
+    "plugins": [
+      "expo-secure-store",
+      "expo-font",
+      "expo-file-system",
+      "expo-location",
+      [
+        "expo-notifications",
+        {
+          "color": "#36196D"
+        }
+      ],
+      [
+        "expo-maps",
+        {
+          "requestLocationPermission": true,
+          "locationPermission": "Allow $(PRODUCT_NAME) to show places near you."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "3f1dcb98-6bff-4ea6-b35d-17b2cd4d7acd"
+      }
+    },
+    "owner": "ramyann"
   }
 }

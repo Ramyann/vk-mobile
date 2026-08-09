@@ -8,7 +8,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { login, logout } from "../../api/auth";
+import { changePassword, login, logout } from "../../api/auth";
 import type { AuthSession } from "../../lib/storage";
 import { colors, radius } from "../../styles/tokens";
 
@@ -102,10 +102,12 @@ export function ProfileScreen({
   session,
   onBack,
   onSignedOut,
+  onChangePassword,
 }: {
   session: AuthSession;
   onBack: () => void;
   onSignedOut: () => void;
+  onChangePassword: () => void;
 }) {
   const [busy, setBusy] = useState(false);
   const signOut = async () => {
@@ -138,9 +140,12 @@ export function ProfileScreen({
         </Text>
       </View>
       <Text style={styles.intro}>
-        Your saved places stay on this device. Account and password management
-        remain available through the dashboard.
+        Your saved places sync to your Visit Kurdistan account whenever you are
+        connected. You can manage your password here.
       </Text>
+      <Pressable onPress={onChangePassword} style={styles.passwordButton}>
+        <Text style={styles.passwordButtonText}>Change password</Text>
+      </Pressable>
       <Pressable
         disabled={busy}
         onPress={() => void signOut()}
@@ -151,6 +156,114 @@ export function ProfileScreen({
         </Text>
       </Pressable>
     </ScrollView>
+  );
+}
+
+export function ChangePasswordScreen({
+  session,
+  onBack,
+}: {
+  session: AuthSession;
+  onBack: () => void;
+}) {
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmation, setConfirmation] = useState("");
+  const [notice, setNotice] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const submit = async () => {
+    if (!currentPassword || !password || !confirmation)
+      return setNotice("Complete every password field.");
+    if (password !== confirmation)
+      return setNotice("The new passwords do not match.");
+    setLoading(true);
+    setNotice(null);
+    try {
+      await changePassword(session, currentPassword, password);
+      setNotice("Your password has been changed.");
+      setCurrentPassword("");
+      setPassword("");
+      setConfirmation("");
+    } catch (error) {
+      setNotice(
+        error instanceof Error
+          ? error.message
+          : "We could not change your password.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+  return (
+    <ScrollView
+      style={styles.page}
+      contentContainerStyle={styles.content}
+      keyboardShouldPersistTaps="handled"
+    >
+      <Pressable
+        onPress={onBack}
+        accessibilityLabel="Go back"
+        style={styles.back}
+      >
+        <Text style={styles.backText}>‹</Text>
+      </Pressable>
+      <Text style={styles.eyebrow}>YOUR ACCOUNT</Text>
+      <Text style={styles.title}>Change password</Text>
+      <Text style={styles.intro}>
+        Use a new password with at least eight characters, an uppercase letter,
+        a lowercase letter, a number and a symbol.
+      </Text>
+      <PasswordField
+        label="Current password"
+        value={currentPassword}
+        onChangeText={setCurrentPassword}
+      />
+      <PasswordField
+        label="New password"
+        value={password}
+        onChangeText={setPassword}
+      />
+      <PasswordField
+        label="Confirm new password"
+        value={confirmation}
+        onChangeText={setConfirmation}
+      />
+      {notice ? <Text style={styles.notice}>{notice}</Text> : null}
+      <Pressable
+        disabled={loading}
+        onPress={() => void submit()}
+        style={[styles.primaryButton, loading && styles.disabled]}
+      >
+        {loading ? (
+          <ActivityIndicator color={colors.white} />
+        ) : (
+          <Text style={styles.primaryButtonText}>Update password</Text>
+        )}
+      </Pressable>
+    </ScrollView>
+  );
+}
+
+function PasswordField({
+  label,
+  value,
+  onChangeText,
+}: {
+  label: string;
+  value: string;
+  onChangeText: (value: string) => void;
+}) {
+  return (
+    <>
+      <Text style={styles.label}>{label}</Text>
+      <TextInput
+        autoComplete="password"
+        onChangeText={onChangeText}
+        secureTextEntry
+        style={styles.input}
+        value={value}
+      />
+    </>
   );
 }
 
@@ -236,5 +349,24 @@ const styles = StyleSheet.create({
     marginTop: 26,
     minHeight: 52,
   },
+  passwordButton: {
+    alignItems: "center",
+    backgroundColor: colors.soft,
+    borderRadius: radius.pill,
+    justifyContent: "center",
+    marginTop: 22,
+    minHeight: 52,
+  },
+  passwordButtonText: {
+    color: colors.primary,
+    fontSize: 15,
+    fontWeight: "800",
+  },
   signOutText: { color: colors.primary, fontSize: 15, fontWeight: "800" },
+  notice: {
+    color: colors.primary,
+    fontSize: 13,
+    lineHeight: 20,
+    marginTop: 16,
+  },
 });
