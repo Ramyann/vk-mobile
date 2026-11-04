@@ -29,10 +29,28 @@ not fully available in Expo Go.
 - Discover: search and filter destinations, places, events, packages and stories
 - Detail: full public CMS content, opening hours, destination context, external
   links and a device map action where coordinates are present
+- Map: every published place from `GET /locations/map`, searchable by name in
+  any language, filtered by governorate and category, with a details card
+  (open-now status, best season, directions, share) and distances from you
+- Plan Your Trip: the website's signed-in trip planner — free-text opener,
+  guided questions, generated day-by-day itinerary and saved trips
 - Saved: a persistent on-device journey list
-- Account: secure device storage for an existing Visit Kurdistan account session
-- Trip assistant: persistent conversation history, dashboard-managed starter
-  prompts and the existing Turnstile-protected chat API
+- Account: visitor sign-in, sign-up with the website's password rules,
+  verification resend and password reset (`/auth/public/*`), with token refresh
+- Trip assistant: streamed replies with the website's Markdown subset,
+  persistent history, feedback, dashboard-managed starter prompts, and the same
+  client-side check for inappropriate text and contact details
+
+## Shared website copy
+
+Strings for accounts, chat, the map and the trip planner are copied from the
+website's `src/i18n/messages/{en,ar,ckb}.json` into `src/i18n/web-messages.ts`.
+After the website's copy changes, regenerate them (expects a sibling
+`vk-frontend-v2` checkout, or pass its path):
+
+```bash
+node scripts/sync-web-messages.mjs
+```
 
 ## Architecture
 

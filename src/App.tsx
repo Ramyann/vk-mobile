@@ -30,21 +30,25 @@ import {
 import { colors, shadows } from "./styles/tokens";
 import {
   ChangePasswordScreen,
+  ForgotPasswordScreen,
   LoginScreen,
   ProfileScreen,
+  SignupScreen,
 } from "./components/account/AccountScreen";
 import { ChatScreen } from "./components/chat/ChatScreen";
 import { ContactScreen, FaqScreen, LanguageScreen } from "./routes/contact";
 import { NotificationSettingsScreen } from "./routes/notifications";
-import { NearbyPlacesScreen } from "./routes/nearby";
+import { PlacesMapScreen } from "./routes/map";
+import { TripPlannerScreen } from "./routes/trip-planner";
+import { webT } from "./i18n/web";
 import { isRtl, navLabels, type AppLocale } from "./i18n/locale";
 import {
   loadAuthSession,
   loadLocale,
-  saveAuthSession,
   saveLocale,
   type AuthSession,
 } from "./lib/storage";
+import { setAuthSession, subscribeAuthSession } from "./lib/auth-store";
 import {
   cancelSavedEventReminder,
   disablePushNotifications,
@@ -62,15 +66,21 @@ type Tab = "explore" | "discover" | "saved" | "more";
 type Panel =
   | "chat"
   | "login"
+  | "signup"
+  | "forgot-password"
   | "profile"
   | "change-password"
   | "faqs"
   | "contact"
   | "language"
   | "notifications"
-  | "nearby"
+  | "map"
+  | "trip-planner"
   | "search";
 type NavigationAction = Tab | "assistant";
+
+/** Panels that keep their state while a detail screen is open over them. */
+const OVERLAY_PANELS = new Set<Panel>(["map", "trip-planner"]);
 
 const navigationIcons: Array<{
   key: NavigationAction;
@@ -100,11 +110,23 @@ export function AppRoot() {
   const [locale, setLocale] = useState<AppLocale>("en");
   const [notificationPreferences, setNotificationPreferences] =
     useState<NotificationPreferences>(defaultNotificationPreferences);
+  /** Where sign-in returns to, e.g. the trip planner. */
+  const [afterSignIn, setAfterSignIn] = useState<Panel | null>(null);
+  const [tripToken, setTripToken] = useState<string | null>(null);
+  const [authNotice, setAuthNotice] = useState<string | null>(null);
 
   useEffect(() => {
     void loadSavedContent().then(setSaved);
-    void loadAuthSession().then(setAuth);
+    // A token refresh, or a refresh the server refused, reaches the shell here.
+    const unsubscribe = subscribeAuthSession(setAuth);
+    void loadAuthSession().then((stored) => {
+      // Sessions from the older build came from the staff login, which no
+      // longer serves visitors; those visitors sign in again.
+      const usable = stored && !stored.userType ? stored : null;
+      void setAuthSession(usable, Boolean(stored && !usable));
+    });
     void loadLocale().then(setLocale);
+    return unsubscribe;
   }, []);
 
   useEffect(() => {
@@ -139,6 +161,15 @@ export function AppRoot() {
     setBrowseType(null);
     setDetail(item);
   };
+  const detailScreen = detail ? (
+    <DetailScreen
+      item={detail}
+      locale={locale}
+      saved={savedIds.has(`${detail.type}-${detail.id}`)}
+      onBack={() => setDetail(null)}
+      onToggleSaved={() => toggleSaved(detail)}
+    />
+  ) : null;
 
   const isContentType = (value: string | undefined): value is ContentType =>
     value === "destination" ||
@@ -154,6 +185,19 @@ export function AppRoot() {
   const openDeepLink = (url: string) => {
     const parsed = Linking.parse(url);
     const segments = (parsed.path ?? "").split("/").filter(Boolean);
+    if (parsed.hostname === "plan-your-trip") {
+      setDetail(null);
+      setBrowseType(null);
+      setTripToken(segments[0] ?? null);
+      setPanel("trip-planner");
+      return;
+    }
+    if (parsed.hostname === "map") {
+      setDetail(null);
+      setBrowseType(null);
+      setPanel("map");
+      return;
+    }
     const type = parsed.hostname === "content" ? segments[0] : undefined;
     const slug = parsed.hostname === "content" ? segments[1] : undefined;
     if (!isContentType(type) || !slug) return;
@@ -211,6 +255,10 @@ export function AppRoot() {
     const subscription = BackHandler.addEventListener(
       "hardwareBackPress",
       () => {
+        if (detail && panel && OVERLAY_PANELS.has(panel)) {
+          setDetail(null);
+          return true;
+        }
         if (panel) {
           setPanel(null);
           return true;
@@ -281,30 +329,64 @@ export function AppRoot() {
           setPanel(null);
           setDetail(item);
         }}
+        onOpenContact={() => setPanel("contact")}
+        onOpenFaqs={() => setPanel("faqs")}
       />
     ) : panel === "login" ? (
       <LoginScreen
-        onBack={() => setPanel(null)}
-        onSignedIn={(session) => {
-          setAuth(session);
-          void saveAuthSession(session);
-          setPanel("profile");
+        locale={locale}
+        note={
+          authNotice ??
+          (afterSignIn === "trip-planner"
+            ? webT(locale)("auth.plannerNote")
+            : undefined)
+        }
+        onBack={() => {
+          setAuthNotice(null);
+          setPanel(afterSignIn === "trip-planner" ? "trip-planner" : null);
+          setAfterSignIn(null);
         }}
+        onSignedIn={(session) => {
+          void setAuthSession(session);
+          setAuthNotice(null);
+          setPanel(afterSignIn ?? "profile");
+          setAfterSignIn(null);
+        }}
+        onSignup={() => setPanel("signup")}
+        onForgot={() => setPanel("forgot-password")}
       />
+    ) : panel === "signup" ? (
+      <SignupScreen
+        locale={locale}
+        onBack={() => setPanel("login")}
+        onSignIn={() => setPanel("login")}
+      />
+    ) : panel === "forgot-password" ? (
+      <ForgotPasswordScreen locale={locale} onBack={() => setPanel("login")} />
     ) : panel === "profile" && auth ? (
       <ProfileScreen
         session={auth}
+        locale={locale}
         onBack={() => setPanel(null)}
         onSignedOut={() => {
           void disablePushNotifications(auth);
-          setAuth(null);
-          void saveAuthSession(null);
+          void setAuthSession(null);
           setPanel(null);
         }}
         onChangePassword={() => setPanel("change-password")}
       />
     ) : panel === "change-password" && auth ? (
-      <ChangePasswordScreen session={auth} onBack={() => setPanel("profile")} />
+      <ChangePasswordScreen
+        locale={locale}
+        onBack={() => setPanel("profile")}
+        onChanged={() => {
+          // The server has ended every session, this one included.
+          void disablePushNotifications(auth);
+          void setAuthSession(null);
+          setAuthNotice(webT(locale)("auth.reset.done"));
+          setPanel("login");
+        }}
+      />
     ) : panel === "faqs" ? (
       <FaqScreen locale={locale} onBack={() => setPanel(null)} />
     ) : panel === "contact" ? (
@@ -323,20 +405,31 @@ export function AppRoot() {
         onBack={() => setPanel(null)}
         onChange={setNotificationPreferences}
       />
-    ) : panel === "nearby" ? (
-      <NearbyPlacesScreen
+    ) : panel === "map" ? (
+      <PlacesMapScreen
         locale={locale}
         onBack={() => setPanel(null)}
         onOpen={open}
+        onPlanTrip={() => setPanel("trip-planner")}
+      />
+    ) : panel === "trip-planner" ? (
+      <TripPlannerScreen
+        initialToken={tripToken}
+        locale={locale}
+        session={auth}
+        onBack={() => {
+          setTripToken(null);
+          setPanel(null);
+        }}
+        onSignIn={() => {
+          setAfterSignIn("trip-planner");
+          setPanel("login");
+        }}
+        onOpen={open}
+        onOpenContact={() => setPanel("contact")}
       />
     ) : detail ? (
-      <DetailScreen
-        item={detail}
-        locale={locale}
-        saved={savedIds.has(`${detail.type}-${detail.id}`)}
-        onBack={() => setDetail(null)}
-        onToggleSaved={() => toggleSaved(detail)}
-      />
+      detailScreen
     ) : browseType ? (
       <BrowseScreen
         type={browseType}
@@ -350,6 +443,8 @@ export function AppRoot() {
         onOpen={open}
         onDiscover={() => setTab("discover")}
         onBrowse={setBrowseType}
+        onOpenMap={() => setPanel("map")}
+        onPlanTrip={() => setPanel("trip-planner")}
       />
     ) : tab === "discover" ? (
       <DiscoverScreen locale={locale} onOpen={open} />
@@ -368,7 +463,8 @@ export function AppRoot() {
         onOpenContact={() => setPanel("contact")}
         onOpenLanguage={() => setPanel("language")}
         onOpenNotifications={() => setPanel("notifications")}
-        onOpenNearby={() => setPanel("nearby")}
+        onOpenMap={() => setPanel("map")}
+        onOpenTripPlanner={() => setPanel("trip-planner")}
         signedIn={Boolean(auth)}
       />
     );
@@ -379,6 +475,13 @@ export function AppRoot() {
         <StatusBar style="dark" />
         <View style={[styles.content, isRtl(locale) && styles.rtl]}>
           {screen}
+          {/* A place opened from the map or an itinerary sits on top, so going
+              back returns to the same filters or the same trip. */}
+          {detailScreen && panel && OVERLAY_PANELS.has(panel) ? (
+            <View style={[StyleSheet.absoluteFill, styles.overlay]}>
+              {detailScreen}
+            </View>
+          ) : null}
         </View>
         {!panel && !detail && !browseType ? (
           <Pressable
@@ -463,6 +566,7 @@ const styles = StyleSheet.create({
   root: { backgroundColor: colors.white, flex: 1 },
   content: { flex: 1 },
   rtl: { direction: "rtl" },
+  overlay: { backgroundColor: colors.white },
   navigationShell: {
     backgroundColor: colors.white,
     paddingBottom: 10,

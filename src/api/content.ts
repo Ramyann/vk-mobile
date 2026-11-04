@@ -1,5 +1,9 @@
 import { API_URL } from "../config/environment";
 import type { AppLocale } from "../i18n/locale";
+import {
+  parseOpeningHours,
+  type OpeningHoursEntry,
+} from "../lib/opening-hours";
 
 export type ContentType =
   | "destination"
@@ -30,6 +34,11 @@ export interface ContentDetail extends ContentItem {
   destination?: string;
   links: Array<{ label: string; url: string }>;
   openingHours: string[];
+  /** The raw rows, for today's open/closed status. */
+  openingHoursRaw?: OpeningHoursEntry[];
+  /** Packages: where the trip starts and ends. */
+  arrivalAirport?: string;
+  departureAirport?: string;
 }
 
 export interface FaqItem {
@@ -399,6 +408,7 @@ export async function getContentDetail(
     link(record.facebook, "Facebook"),
     link(record.instagram, "Instagram"),
     link(record.youtube, "YouTube"),
+    link(record.twitter, "X"),
     link(record.tiktok, "TikTok"),
   ].filter((entry): entry is { label: string; url: string } => Boolean(entry));
   return {
@@ -411,5 +421,8 @@ export async function getContentDetail(
     destination: destination || undefined,
     links,
     openingHours: openingHoursText(record.openingHours),
+    openingHoursRaw: parseOpeningHours(record.openingHours),
+    arrivalAirport: text(record.arrivalAirport) || undefined,
+    departureAirport: text(record.departureAirport) || undefined,
   };
 }

@@ -13,6 +13,7 @@ import { SectionHeading, TextAction } from "../../components/SectionHeader";
 import { useExploreData } from "../../hooks/useExploreData";
 import type { ContentItem, ContentType } from "../../api/content";
 import { t, type AppLocale } from "../../i18n/locale";
+import { webT } from "../../i18n/web";
 import { EmptyState } from "../../components/EmptyState";
 import { ErrorState } from "../../components/ErrorState";
 import { LoadingState } from "../../components/LoadingState";
@@ -22,13 +23,18 @@ export function ExploreScreen({
   onOpen,
   onDiscover,
   onBrowse,
+  onOpenMap,
+  onPlanTrip,
   locale,
 }: {
   onOpen: (item: ContentItem) => void;
   onDiscover: () => void;
   onBrowse: (type: ContentType) => void;
+  onOpenMap: () => void;
+  onPlanTrip: () => void;
   locale: AppLocale;
 }) {
+  const tw = webT(locale);
   const { data, loading, refreshing, error, refresh } = useExploreData(locale);
   if (loading) return <LoadingState label="Finding extraordinary places…" />;
   if (error && !data)
@@ -88,6 +94,26 @@ export function ExploreScreen({
         onOpen={onOpen}
         onBrowse={() => onBrowse("destination")}
       />
+      <Pressable
+        accessibilityRole="button"
+        onPress={onOpenMap}
+        style={styles.mapBand}
+      >
+        <Text style={styles.mapBandEyebrow}>
+          {tw("exploreMap.eyebrow").toUpperCase()}
+        </Text>
+        <Text style={styles.mapBandTitle}>
+          {tw("destinations.mapCtaTitle")}
+        </Text>
+        <Text style={styles.mapBandBody}>
+          {tw("destinations.mapCtaSubtitle")}
+        </Text>
+        <View style={styles.heroButton}>
+          <Text style={styles.heroButtonText}>
+            {tw("destinations.openMap")} ↗
+          </Text>
+        </View>
+      </Pressable>
       <View style={styles.tinted}>
         <ContentRail
           heading={t(locale, "travelPackages")}
@@ -130,12 +156,18 @@ export function ExploreScreen({
       ) : null}
       <View style={styles.limeCard}>
         <Text style={styles.limeOverline}>MAKE IT YOUR OWN</Text>
-        <Text style={styles.limeTitle}>
-          Save places you love and build your perfect Kurdistan journey.
-        </Text>
-        <Pressable onPress={onDiscover} style={styles.darkPill}>
-          <Text style={styles.darkPillText}>Start exploring</Text>
-        </Pressable>
+        <Text style={styles.limeTitle}>{tw("exploreMap.ctaTitle")}</Text>
+        <Text style={styles.limeBody}>{tw("exploreMap.ctaSubtitle")}</Text>
+        <View style={styles.pillRow}>
+          <Pressable onPress={onPlanTrip} style={styles.darkPill}>
+            <Text style={styles.darkPillText}>
+              {tw("exploreMap.ctaPrimaryLabel")}
+            </Text>
+          </Pressable>
+          <Pressable onPress={onDiscover} style={styles.outlinePill}>
+            <Text style={styles.outlinePillText}>Start exploring</Text>
+          </Pressable>
+        </View>
       </View>
     </ScrollView>
   );
@@ -281,13 +313,49 @@ const styles = StyleSheet.create({
     lineHeight: 30,
     marginTop: 10,
   },
+  limeBody: { color: colors.dark, fontSize: 14, lineHeight: 21, marginTop: 10 },
+  pillRow: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 20 },
   darkPill: {
     alignSelf: "flex-start",
     backgroundColor: colors.primary,
     borderRadius: radius.pill,
-    marginTop: 20,
     paddingHorizontal: 18,
     paddingVertical: 12,
+  },
+  outlinePill: {
+    borderColor: colors.primary,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+  },
+  outlinePillText: { color: colors.primary, fontSize: 14, fontWeight: "800" },
+  mapBand: {
+    backgroundColor: colors.primary,
+    borderRadius: radius.cardLarge,
+    marginHorizontal: 20,
+    marginVertical: 8,
+    padding: 24,
+  },
+  mapBandEyebrow: {
+    color: colors.lime,
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 1.3,
+  },
+  mapBandTitle: {
+    color: colors.white,
+    fontSize: 25,
+    fontWeight: "900",
+    letterSpacing: -0.6,
+    lineHeight: 30,
+    marginTop: 8,
+  },
+  mapBandBody: {
+    color: "rgba(255,255,255,0.88)",
+    fontSize: 14,
+    lineHeight: 21,
+    marginTop: 8,
   },
   darkPillText: { color: colors.white, fontSize: 14, fontWeight: "800" },
 });

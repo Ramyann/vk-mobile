@@ -6,6 +6,10 @@ export interface AuthSession {
   accessToken: string;
   refreshToken: string;
   email: string;
+  userId?: string;
+  firstName?: string;
+  lastName?: string;
+  /** Only on sessions stored by the older staff-login build. */
   userType?: string;
   roles: string[];
 }

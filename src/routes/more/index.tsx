@@ -1,5 +1,16 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  Linking,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { languageName, type AppLocale } from "../../i18n/locale";
+import { webT } from "../../i18n/web";
+
+/** The website's Shop action (header and drawer) opens the official store. */
+const SHOP_URL = "https://store.visitkurdistan.krd";
 import { colors, radius } from "../../styles/tokens";
 
 export function MoreScreen({
@@ -9,7 +20,8 @@ export function MoreScreen({
   onOpenContact,
   onOpenLanguage,
   onOpenNotifications,
-  onOpenNearby,
+  onOpenMap,
+  onOpenTripPlanner,
   signedIn,
   locale,
 }: {
@@ -19,10 +31,12 @@ export function MoreScreen({
   onOpenContact: () => void;
   onOpenLanguage: () => void;
   onOpenNotifications: () => void;
-  onOpenNearby: () => void;
+  onOpenMap: () => void;
+  onOpenTripPlanner: () => void;
   signedIn: boolean;
   locale: AppLocale;
 }) {
+  const t = webT(locale);
   return (
     <ScrollView style={styles.page} contentContainerStyle={styles.content}>
       <Text style={styles.eyebrow}>VISIT KURDISTAN</Text>
@@ -36,12 +50,26 @@ export function MoreScreen({
         <Text style={styles.assistantNote}>Start a conversation ↗</Text>
       </Pressable>
       <MenuRow
+        icon="✈"
+        title={t("exploreMap.ctaPrimaryLabel")}
+        subtitle={t("tripPlanner.title")}
+        onPress={onOpenTripPlanner}
+      />
+      <MenuRow
+        icon="⌖"
+        title={t("exploreMap.title")}
+        subtitle={t("destinations.mapCtaSubtitle")}
+        onPress={onOpenMap}
+      />
+      <MenuRow
         icon="◉"
-        title={signedIn ? "Your profile" : "Sign in"}
+        title={
+          signedIn ? t("header.account.menuLabel") : t("header.account.signIn")
+        }
         subtitle={
           signedIn
-            ? "Manage your device session"
-            : "Use your existing Visit Kurdistan account"
+            ? "Manage your account and password"
+            : t("header.account.signInOrCreate")
         }
         onPress={onOpenProfile}
       />
@@ -58,10 +86,10 @@ export function MoreScreen({
         onPress={onOpenContact}
       />
       <MenuRow
-        icon="⌖"
-        title="Nearby places"
-        subtitle="See places around you on a map"
-        onPress={onOpenNearby}
+        icon="⛉"
+        title="Shop"
+        subtitle="store.visitkurdistan.krd"
+        onPress={() => void Linking.openURL(SHOP_URL)}
       />
       <MenuRow
         icon="◌"
