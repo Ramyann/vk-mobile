@@ -11,23 +11,29 @@ import {
 import { getFaqs, type FaqItem } from "../../api/content";
 import { FaqAccordion } from "../../components/FaqAccordion";
 import { submitContactInquiry, type ContactDraft } from "../../api/contact";
-import { colors, gutter, radius } from "../../styles/tokens";
+import { colors, gutter, radius, topSpace } from "../../styles/tokens";
 import { Ionicons } from "@expo/vector-icons";
 import { Button } from "../../components/ui/Button";
 import { BackButton } from "../../components/ui/ScreenHeader";
 import { TextField } from "../../components/ui/TextField";
 import { TurnstileSheet } from "../../components/TurnstileSheet";
 import {
+  isRtl,
   LOCALE_OPTIONS,
   languageName,
   type AppLocale,
 } from "../../i18n/locale";
+import { ta } from "../../i18n/app-messages";
 import { fonts, type } from "../../styles/typography";
 
-function Back({ onPress }: { onPress: () => void }) {
+function Back({ onPress, locale }: { onPress: () => void; locale: AppLocale }) {
   return (
     <View style={styles.back}>
-      <BackButton onPress={onPress} />
+      <BackButton
+        label={ta(locale, "goBack")}
+        onPress={onPress}
+        rtl={isRtl(locale)}
+      />
     </View>
   );
 }
@@ -49,11 +55,11 @@ export function FaqScreen({
   }, [locale]);
   return (
     <ScrollView style={styles.page} contentContainerStyle={styles.content}>
-      <Back onPress={onBack} />
-      <Text style={styles.title}>Frequently asked questions</Text>
-      <Text style={styles.intro}>
-        Helpful answers from the Visit Kurdistan team.
+      <Back locale={locale} onPress={onBack} />
+      <Text accessibilityRole="header" style={styles.title}>
+        {ta(locale, "faq")}
       </Text>
+      <Text style={styles.intro}>{ta(locale, "faqIntro")}</Text>
       {loading ? (
         <ActivityIndicator color={colors.primary} style={styles.spinner} />
       ) : (
@@ -74,11 +80,11 @@ export function LanguageScreen({
 }) {
   return (
     <ScrollView style={styles.page} contentContainerStyle={styles.content}>
-      <Back onPress={onBack} />
-      <Text style={styles.title}>Language</Text>
-      <Text style={styles.intro}>
-        Choose the language used for content, FAQs and the trip assistant.
+      <Back locale={locale} onPress={onBack} />
+      <Text accessibilityRole="header" style={styles.title}>
+        {ta(locale, "language")}
       </Text>
+      <Text style={styles.intro}>{ta(locale, "languageIntro")}</Text>
       <View style={styles.languageList}>
         {LOCALE_OPTIONS.map((option) => (
           <Pressable
@@ -116,7 +122,7 @@ export function LanguageScreen({
         ))}
       </View>
       <Text style={styles.languageCurrent}>
-        Current language: {languageName(locale)}
+        {ta(locale, "currentLanguage", { language: languageName(locale) })}
       </Text>
     </ScrollView>
   );
@@ -130,7 +136,13 @@ const emptyDraft: ContactDraft = {
   message: "",
 };
 
-export function ContactScreen({ onBack }: { onBack: () => void }) {
+export function ContactScreen({
+  onBack,
+  locale,
+}: {
+  onBack: () => void;
+  locale: AppLocale;
+}) {
   const [draft, setDraft] = useState<ContactDraft>(emptyDraft);
   const [verify, setVerify] = useState(false);
   const [sending, setSending] = useState(false);
@@ -139,7 +151,7 @@ export function ContactScreen({ onBack }: { onBack: () => void }) {
     setDraft((current) => ({ ...current, [key]: value }));
   const start = () => {
     if (Object.values(draft).some((value) => !value.trim()))
-      return setNotice("Please complete all fields.");
+      return setNotice(ta(locale, "completeAllFields"));
     setNotice(null);
     setVerify(true);
   };
@@ -149,13 +161,9 @@ export function ContactScreen({ onBack }: { onBack: () => void }) {
     try {
       await submitContactInquiry(draft, token);
       setDraft(emptyDraft);
-      setNotice("Thanks — your message has been sent.");
-    } catch (error) {
-      setNotice(
-        error instanceof Error
-          ? error.message
-          : "We could not send your message.",
-      );
+      setNotice(ta(locale, "messageSent"));
+    } catch {
+      setNotice(ta(locale, "messageFailed"));
     } finally {
       setSending(false);
     }
@@ -166,36 +174,36 @@ export function ContactScreen({ onBack }: { onBack: () => void }) {
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
     >
-      <Back onPress={onBack} />
-      <Text style={styles.title}>Contact us</Text>
-      <Text style={styles.intro}>
-        Send a message directly to the Visit Kurdistan team.
+      <Back locale={locale} onPress={onBack} />
+      <Text accessibilityRole="header" style={styles.title}>
+        {ta(locale, "contactUs")}
       </Text>
+      <Text style={styles.intro}>{ta(locale, "contactIntro")}</Text>
       <View style={styles.nameRow}>
         <Field
-          label="First name"
+          label={ta(locale, "firstName")}
           value={draft.firstName}
           onChangeText={(value) => set("firstName", value)}
         />
         <Field
-          label="Last name"
+          label={ta(locale, "lastName")}
           value={draft.lastName}
           onChangeText={(value) => set("lastName", value)}
         />
       </View>
       <Field
-        label="Email"
+        label={ta(locale, "email")}
         value={draft.email}
         keyboardType="email-address"
         onChangeText={(value) => set("email", value)}
       />
       <Field
-        label="Subject"
+        label={ta(locale, "subject")}
         value={draft.subject}
         onChangeText={(value) => set("subject", value)}
       />
       <Field
-        label="Message"
+        label={ta(locale, "message")}
         multiline
         value={draft.message}
         onChangeText={(value) => set("message", value)}
@@ -203,12 +211,13 @@ export function ContactScreen({ onBack }: { onBack: () => void }) {
       {notice ? <Text style={styles.notice}>{notice}</Text> : null}
       <Button
         fill
-        label="Send message"
+        label={ta(locale, "sendMessage")}
         loading={sending}
         onPress={start}
         style={styles.send}
       />
       <TurnstileSheet
+        locale={locale}
         visible={verify}
         onClose={() => setVerify(false)}
         onToken={(token) => void submit(token)}
@@ -248,7 +257,7 @@ const styles = StyleSheet.create({
     gap: 14,
     paddingBottom: 44,
     paddingHorizontal: gutter,
-    paddingTop: 4,
+    paddingTop: topSpace,
   },
   back: { marginBottom: 12 },
   title: { ...type.title, color: colors.dark },

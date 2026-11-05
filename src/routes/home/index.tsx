@@ -19,6 +19,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SectionHeading, TextAction } from "../../components/SectionHeader";
 import { Button } from "../../components/ui/Button";
+import { Logo } from "../../components/ui/Logo";
 import { useExploreData } from "../../hooks/useExploreData";
 import type { ContentItem, ContentType, HeroBanner } from "../../api/content";
 import { t, isRtl, type AppLocale } from "../../i18n/locale";
@@ -28,10 +29,15 @@ import { ErrorState } from "../../components/ErrorState";
 import { LoadingState } from "../../components/LoadingState";
 import { dateBlock, untilLabel } from "../../lib/dates";
 import { formatNumber } from "../../lib/localized";
-import { colors, gutter, radius } from "../../styles/tokens";
-import { type } from "../../styles/typography";
+import { colors, gutter, radius, topSpace } from "../../styles/tokens";
+import { fonts, type } from "../../styles/typography";
+import { useTabBarSpace } from "../../components/ui/TabBar";
+import { ta } from "../../i18n/app-messages";
+import { Rail } from "../../components/ui/Rail";
 
 const HERO_HEIGHT = 560;
+/** The square-ish photos in the plan card's route preview. */
+const ROUTE_PHOTO = 92;
 /** Height over width of the exported map illustration (305 x 287 in Figma). */
 const MAP_ART_RATIO = 287 / 305;
 
@@ -64,6 +70,7 @@ export function ExploreScreen({
 }) {
   const tw = webT(locale);
   const insets = useSafeAreaInsets();
+  const tabBarSpace = useTabBarSpace();
   const { width } = useWindowDimensions();
   // The card's inner width: the page gutter and the card's own padding.
   const mapArtWidth = width - gutter * 2 - 48;
@@ -79,9 +86,10 @@ export function ExploreScreen({
       <View style={[styles.page, { paddingTop: insets.top }]}>
         <StatusBar style="dark" />
         {loading ? (
-          <LoadingState label="Finding extraordinary places…" />
+          <LoadingState label={ta(locale, "loading")} />
         ) : (
           <ErrorState
+            locale={locale}
             detail={t(locale, "connectionError")}
             onRetry={() => void refresh()}
           />
@@ -99,6 +107,7 @@ export function ExploreScreen({
     <View style={styles.page}>
       <StatusBar style={pastHero ? "dark" : "light"} />
       <ScrollView
+        contentContainerStyle={{ paddingBottom: tabBarSpace }}
         onScroll={onScroll}
         scrollEventThrottle={32}
         refreshControl={
@@ -131,11 +140,7 @@ export function ExploreScreen({
             }
           />
           {data?.destinations.length ? (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.rail}
-            >
+            <Rail rtl={isRtl(locale)} contentContainerStyle={styles.rail}>
               {data.destinations.map((item) => (
                 <DestinationCard
                   key={item.id}
@@ -143,13 +148,13 @@ export function ExploreScreen({
                   onPress={() => onOpen(item)}
                 />
               ))}
-            </ScrollView>
+            </Rail>
           ) : (
             <View style={styles.gutter}>
               <EmptyState
                 compact
-                title="Nothing here yet"
-                detail="Destinations will appear here once added in the dashboard."
+                title={ta(locale, "nothingHere")}
+                detail={ta(locale, "emptyList")}
               />
             </View>
           )}
@@ -208,19 +213,22 @@ export function ExploreScreen({
             ) : (
               <EmptyState
                 compact
-                title="Nothing here yet"
-                detail="There are no upcoming events right now."
+                title={ta(locale, "nothingHere")}
+                detail={ta(locale, "noEvents")}
               />
             )}
           </View>
         </View>
 
-        <View style={styles.planBand}>
-          <Text style={styles.planTitle}>{tw("tripPlanner.title")}</Text>
-          <Text style={styles.bodyText}>{tw("tripPlanner.intro")}</Text>
-          <Button
-            label={tw("exploreMap.ctaPrimaryLabel")}
+        <View style={styles.planSection}>
+          <PlanCard
+            dayLabel={tw("tripPlanner.day")}
+            intro={tw("tripPlanner.intro")}
+            locale={locale}
             onPress={onPlanTrip}
+            stops={(data?.destinations ?? []).slice(0, 3)}
+            title={tw("tripPlanner.title")}
+            action={tw("exploreMap.ctaPrimaryLabel")}
           />
         </View>
 
@@ -236,18 +244,23 @@ export function ExploreScreen({
                 />
               }
             />
-            <View style={[styles.gutter, styles.storyList]}>
+            <View style={styles.gutter}>
               <FeatureStory
                 item={data.stories[0]}
                 onPress={() => onOpen(data.stories[0])}
               />
-              {data.stories.slice(1, 3).map((item) => (
-                <StoryRow
-                  key={item.id}
-                  item={item}
-                  onPress={() => onOpen(item)}
-                />
-              ))}
+              {data.stories.length > 1 ? (
+                <View style={styles.storyList}>
+                  {data.stories.slice(1, 4).map((item, index) => (
+                    <StoryRow
+                      divider={index > 0}
+                      key={item.id}
+                      item={item}
+                      onPress={() => onOpen(item)}
+                    />
+                  ))}
+                </View>
+              ) : null}
             </View>
           </View>
         ) : null}
@@ -264,11 +277,7 @@ export function ExploreScreen({
                 />
               }
             />
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.rail}
-            >
+            <Rail rtl={isRtl(locale)} contentContainerStyle={styles.rail}>
               {data.packages.map((item) => (
                 <PackageCard
                   key={item.id}
@@ -276,7 +285,7 @@ export function ExploreScreen({
                   onPress={() => onOpen(item)}
                 />
               ))}
-            </ScrollView>
+            </Rail>
           </View>
         ) : null}
       </ScrollView>
@@ -315,20 +324,15 @@ function Hero({
         },
       ];
   const onPage = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const page = Math.round(event.nativeEvent.contentOffset.x / width);
+    // Browsers report a negative offset when scrolling right to left.
+    const page = Math.round(
+      Math.abs(event.nativeEvent.contentOffset.x) / width,
+    );
     setIndex(Math.min(Math.max(page, 0), slides.length - 1));
   };
   return (
     <View style={styles.hero}>
-      <ScrollView
-        horizontal
-        pagingEnabled
-        onMomentumScrollEnd={onPage}
-        showsHorizontalScrollIndicator={false}
-        // Pages follow the reading direction, so Arabic and Kurdish swipe the
-        // natural way.
-        style={isRtl(locale) ? styles.flip : undefined}
-      >
+      <Rail pagingEnabled onMomentumScrollEnd={onPage} rtl={isRtl(locale)}>
         {slides.map((banner) => (
           <ImageBackground
             key={banner.id}
@@ -337,19 +341,24 @@ function Hero({
               styles.heroSlide,
               { width },
               !banner.image && styles.heroFallback,
-              isRtl(locale) && styles.flip,
             ]}
           >
             <LinearGradient
               colors={[
-                "rgba(20,20,20,0.35)",
+                "rgba(20,20,20,0.5)",
+                "rgba(20,20,20,0)",
                 "rgba(20,20,20,0.05)",
                 "rgba(20,20,20,0.82)",
               ]}
-              locations={[0, 0.3, 1]}
+              locations={[0, 0.24, 0.45, 1]}
               style={StyleSheet.absoluteFill}
             />
-            <View style={[styles.heroCopy, { paddingTop: topInset + 104 }]}>
+            <View
+              style={[
+                styles.heroCopy,
+                { paddingTop: topInset + topSpace + 104 },
+              ]}
+            >
               <Text numberOfLines={3} style={styles.heroTitle}>
                 {banner.title}
               </Text>
@@ -372,21 +381,20 @@ function Hero({
             </View>
           </ImageBackground>
         ))}
-      </ScrollView>
-      <View style={[styles.topBar, { top: topInset }]}>
-        <Text accessibilityRole="header" style={styles.wordmark}>
-          Visit Kurdistan
-        </Text>
+      </Rail>
+      <View style={[styles.topBar, { top: topInset + topSpace }]}>
+        <Logo color={colors.white} height={48} />
         <Pressable
           accessibilityLabel={t(locale, "search")}
-          accessibilityRole="button"
+          accessibilityRole="search"
           onPress={onSearch}
           style={({ pressed }) => [
-            styles.searchButton,
-            pressed && styles.searchPressed,
+            styles.searchPill,
+            pressed && styles.searchPillPressed,
           ]}
         >
-          <Ionicons color={colors.white} name="search-outline" size={22} />
+          <Ionicons color={colors.white} name="search-outline" size={18} />
+          <Text style={styles.searchPillText}>{t(locale, "search")}</Text>
         </Pressable>
       </View>
     </View>
@@ -503,16 +511,22 @@ function FeatureStory({
 
 function StoryRow({
   item,
+  divider,
   onPress,
 }: {
   item: ContentItem;
+  divider: boolean;
   onPress: () => void;
 }) {
   return (
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
-      style={({ pressed }) => [styles.storyRow, pressed && styles.pressed]}
+      style={({ pressed }) => [
+        styles.storyRow,
+        divider && styles.divider,
+        pressed && styles.pressed,
+      ]}
     >
       {item.image ? (
         <Image source={{ uri: item.image }} style={styles.storyThumb} />
@@ -521,11 +535,79 @@ function StoryRow({
       )}
       <View style={styles.storyCopy}>
         {item.label ? <Text style={styles.category}>{item.label}</Text> : null}
-        <Text numberOfLines={3} style={styles.itemTitle}>
+        <Text numberOfLines={2} style={styles.storyTitle}>
           {item.title}
         </Text>
       </View>
     </Pressable>
+  );
+}
+
+/**
+ * The trip planner's card: a three-day route preview from real destinations
+ * (numbered stops joined by a dashed line), then the pitch and the action.
+ */
+function PlanCard({
+  title,
+  intro,
+  action,
+  dayLabel,
+  stops,
+  locale,
+  onPress,
+}: {
+  title: string;
+  intro: string;
+  action: string;
+  dayLabel: string;
+  stops: ContentItem[];
+  locale: AppLocale;
+  onPress: () => void;
+}) {
+  return (
+    <View style={styles.planCard}>
+      {stops.length === 3 ? (
+        <View
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          style={styles.route}
+        >
+          <View style={styles.routeLine} />
+          {stops.map((stop, index) => (
+            <View key={stop.id} style={styles.routeStop}>
+              <View style={styles.routePhotoWrap}>
+                {stop.image ? (
+                  <Image
+                    source={{ uri: stop.image }}
+                    style={styles.routePhoto}
+                  />
+                ) : (
+                  <View
+                    style={[styles.routePhoto, styles.routePhotoFallback]}
+                  />
+                )}
+              </View>
+              <View style={styles.routeNumber}>
+                <Text style={styles.routeNumberText}>
+                  {formatNumber(index + 1, locale)}
+                </Text>
+              </View>
+              <Text style={styles.routeDay}>
+                {`${dayLabel} ${formatNumber(index + 1, locale)}`}
+              </Text>
+              <Text numberOfLines={1} style={styles.routePlace}>
+                {stop.title}
+              </Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
+      <View style={styles.planCopy}>
+        <Text style={styles.planTitle}>{title}</Text>
+        <Text style={styles.planIntro}>{intro}</Text>
+      </View>
+      <Button fill kind="lime" label={action} onPress={onPress} />
+    </View>
   );
 }
 
@@ -557,7 +639,6 @@ function PackageCard({
 const styles = StyleSheet.create({
   page: { backgroundColor: colors.white, flex: 1 },
   gutter: { paddingHorizontal: gutter },
-  flip: { transform: [{ scaleX: -1 }] },
   pressed: { opacity: 0.85 },
   rowPressed: { backgroundColor: colors.soft },
   hero: { height: HERO_HEIGHT },
@@ -580,22 +661,24 @@ const styles = StyleSheet.create({
   topBar: {
     alignItems: "center",
     flexDirection: "row",
-    height: 44,
     justifyContent: "space-between",
     left: gutter,
     position: "absolute",
     right: gutter,
   },
-  wordmark: { ...type.section, color: colors.white },
-  searchButton: {
+  searchPill: {
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.18)",
+    backgroundColor: "rgba(255,255,255,0.16)",
+    borderColor: "rgba(255,255,255,0.32)",
     borderRadius: radius.pill,
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    flexDirection: "row",
+    gap: 8,
     height: 44,
-    justifyContent: "center",
-    width: 44,
+    paddingHorizontal: 16,
   },
-  searchPressed: { backgroundColor: "rgba(255,255,255,0.32)" },
+  searchPillPressed: { backgroundColor: "rgba(255,255,255,0.3)" },
+  searchPillText: { ...type.smallStrong, color: colors.white },
   whereToGo: { gap: 16, paddingBottom: 8, paddingTop: 36 },
   rail: { gap: 12, paddingHorizontal: gutter },
   destination: { borderRadius: radius.card, overflow: "hidden" },
@@ -636,16 +719,62 @@ const styles = StyleSheet.create({
     height: 64,
     width: 64,
   },
-  planBand: {
-    backgroundColor: colors.lime,
-    gap: 14,
-    paddingBottom: 40,
-    paddingHorizontal: gutter,
-    paddingTop: 36,
+  planSection: { paddingHorizontal: gutter, paddingVertical: 28 },
+  planCard: {
+    backgroundColor: colors.primary,
+    borderRadius: radius.panel,
+    gap: 22,
+    overflow: "hidden",
+    padding: 20,
+    paddingTop: 24,
   },
-  planTitle: { ...type.title, color: colors.dark },
+  route: { flexDirection: "row", gap: 10 },
+  // Runs through the stop numbers, from the first column's centre to the last.
+  routeLine: {
+    borderColor: "rgba(237,255,129,0.55)",
+    borderStyle: "dashed",
+    borderTopWidth: 2,
+    left: "16%",
+    position: "absolute",
+    right: "16%",
+    top: ROUTE_PHOTO + 1,
+  },
+  routeStop: { alignItems: "center", flex: 1 },
+  routePhotoWrap: {
+    borderRadius: 18,
+    height: ROUTE_PHOTO,
+    overflow: "hidden",
+    width: "100%",
+  },
+  routePhoto: { height: "100%", width: "100%" },
+  routePhotoFallback: { backgroundColor: "rgba(255,255,255,0.12)" },
+  routeNumber: {
+    alignItems: "center",
+    backgroundColor: colors.lime,
+    borderColor: colors.primary,
+    borderRadius: radius.pill,
+    borderWidth: 3,
+    height: 30,
+    justifyContent: "center",
+    marginTop: -14,
+    width: 30,
+  },
+  routeNumberText: {
+    ...type.smallStrong,
+    color: colors.primary,
+    lineHeight: 18,
+  },
+  routeDay: { ...type.caption, color: "rgba(255,255,255,0.7)", marginTop: 6 },
+  routePlace: { ...type.smallStrong, color: colors.white },
+  planCopy: { gap: 10 },
+  planTitle: { ...type.title, color: colors.white },
+  planIntro: { ...type.body, color: "rgba(255,255,255,0.8)" },
   stories: { gap: 16, paddingBottom: 8, paddingTop: 36 },
-  storyList: { gap: 20 },
+  storyList: {
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
+    marginTop: 28,
+  },
   featureStory: { gap: 10 },
   featureImage: {
     backgroundColor: colors.soft,
@@ -654,12 +783,23 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   category: { ...type.caption, color: colors.primary },
-  storyRow: { alignItems: "center", flexDirection: "row", gap: 14 },
+  storyRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 14,
+    paddingVertical: 16,
+  },
+  storyTitle: {
+    color: colors.dark,
+    fontFamily: fonts.semibold,
+    fontSize: 17,
+    lineHeight: 23,
+  },
   storyThumb: {
     backgroundColor: colors.soft,
     borderRadius: radius.thumb,
-    height: 88,
-    width: 88,
+    height: 80,
+    width: 80,
   },
   storyCopy: { flex: 1, gap: 4 },
   packages: { gap: 16, paddingBottom: 36, paddingTop: 36 },

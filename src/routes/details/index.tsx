@@ -14,7 +14,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { type ContentItem } from "../../api/content";
-import { CONTENT_TYPE_LABEL, metaLine } from "../../components/ContentCard";
+import { contentTypeLabel, metaLine } from "../../components/ContentCard";
 import { Button } from "../../components/ui/Button";
 import { BackButton, RoundAction } from "../../components/ui/ScreenHeader";
 import { useContentDetail } from "../../hooks/useContentDetail";
@@ -23,8 +23,10 @@ import { webT } from "../../i18n/web";
 import { cacheSavedDetail } from "../../lib/offline-content";
 import { openingStatus, summariseHours } from "../../lib/opening-hours";
 import { NativeMap, nativeMapsAvailable } from "../map/NativeMap";
-import { colors, gutter, radius } from "../../styles/tokens";
+import { LocationMap } from "../../components/LocationMap";
+import { colors, gutter, radius, topSpace } from "../../styles/tokens";
 import { type } from "../../styles/typography";
+import { ta } from "../../i18n/app-messages";
 
 type IconName = ComponentProps<typeof Ionicons>["name"];
 
@@ -85,31 +87,36 @@ export function DetailScreen({
   if (display.type === "event" && display.date)
     facts.push({
       icon: "calendar-outline",
-      label: "Dates",
+      label: ta(locale, "date"),
       value: metaLine(display, locale),
     });
   if (detail?.openingHours.length)
     facts.push({
       icon: "time-outline",
       label: t("destinations.openingHours"),
-      value: summariseHours(detail.openingHours, t("places.open24Hours")),
+      value: summariseHours(
+        detail.openingHours,
+        t("places.open24Hours"),
+        (hours) => ta(locale, "everyDay", { hours }),
+        (hours) => ta(locale, "everyDayFrom", { hours }),
+      ),
     });
   if (detail?.destination)
     facts.push({
       icon: "location-outline",
-      label: "Governorate",
+      label: ta(locale, "governorate"),
       value: detail.destination,
     });
   if (detail?.arrivalAirport)
     facts.push({
       icon: "airplane-outline",
-      label: "Arrival airport",
+      label: ta(locale, "arrivalAirport"),
       value: detail.arrivalAirport,
     });
   if (detail?.departureAirport)
     facts.push({
       icon: "airplane-outline",
-      label: "Departure airport",
+      label: ta(locale, "departureAirport"),
       value: detail.departureAirport,
     });
 
@@ -127,10 +134,10 @@ export function DetailScreen({
             colors={["rgba(20,20,20,0.45)", "rgba(20,20,20,0)"]}
             style={styles.topScrim}
           />
-          <View style={[styles.photoActions, { top: insets.top + 8 }]}>
+          <View style={[styles.photoActions, { top: insets.top + topSpace }]}>
             <BackButton onPress={onBack} rtl={rtl} tone="glass" />
             <RoundAction
-              label={saved ? "Remove from saved" : "Save"}
+              label={ta(locale, saved ? "removeFromSaved" : "save")}
               onPress={onToggleSaved}
               tone="glass"
             >
@@ -146,7 +153,7 @@ export function DetailScreen({
         <View style={styles.content}>
           <View style={styles.titleBlock}>
             <Text style={styles.category}>
-              {display.label || CONTENT_TYPE_LABEL[display.type]}
+              {display.label || contentTypeLabel(display.type, locale)}
             </Text>
             <Text accessibilityRole="header" style={styles.title}>
               {display.title}
@@ -198,16 +205,16 @@ export function DetailScreen({
 
           {about ? (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>About</Text>
+              <Text style={styles.sectionTitle}>{ta(locale, "about")}</Text>
               <Text style={styles.about}>{about}</Text>
             </View>
           ) : null}
 
           {coordinates ? (
             <View style={styles.sectionWide}>
-              <Text style={styles.sectionTitle}>Location</Text>
+              <Text style={styles.sectionTitle}>{ta(locale, "location")}</Text>
               <Pressable
-                accessibilityLabel="Get directions"
+                accessibilityLabel={ta(locale, "getDirections")}
                 accessibilityRole="button"
                 onPress={() =>
                   directionsUrl && void Linking.openURL(directionsUrl)
@@ -231,12 +238,7 @@ export function DetailScreen({
                     />
                   </View>
                 ) : (
-                  <View style={styles.mapFallback}>
-                    <View style={styles.pin} />
-                    <Text style={styles.coordinates}>
-                      {`${coordinates.latitude.toFixed(4)}, ${coordinates.longitude.toFixed(4)}`}
-                    </Text>
-                  </View>
+                  <LocationMap {...coordinates} />
                 )}
               </Pressable>
             </View>
@@ -267,7 +269,7 @@ export function DetailScreen({
         ) : null}
         <Button
           kind="primary"
-          label={saved ? "Saved to your journey" : "Save to your journey"}
+          label={ta(locale, saved ? "savedToJourney" : "saveToJourney")}
           onPress={onToggleSaved}
           style={styles.saveButton}
         />
@@ -321,22 +323,6 @@ const styles = StyleSheet.create({
     height: 200,
     overflow: "hidden",
   },
-  mapFallback: {
-    alignItems: "center",
-    backgroundColor: colors.mapLand,
-    flex: 1,
-    gap: 10,
-    justifyContent: "center",
-  },
-  pin: {
-    backgroundColor: colors.lime,
-    borderColor: colors.primary,
-    borderRadius: radius.pill,
-    borderWidth: 3,
-    height: 18,
-    width: 18,
-  },
-  coordinates: { ...type.small, color: colors.muted },
   links: { alignItems: "flex-start" },
   actionBar: {
     backgroundColor: colors.white,

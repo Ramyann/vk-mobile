@@ -1,13 +1,15 @@
 import { useState } from "react";
 import {
   ActivityIndicator,
-  Pressable,
+  Platform,
   ScrollView,
   StyleSheet,
   Switch,
   Text,
   View,
 } from "react-native";
+import type { ComponentProps } from "react";
+import { Ionicons } from "@expo/vector-icons";
 import {
   defaultNotificationPreferences,
   type NotificationPreferences,
@@ -18,10 +20,15 @@ import {
   disablePushNotifications,
 } from "../../lib/notifications";
 import type { AuthSession } from "../../lib/storage";
-import type { AppLocale } from "../../i18n/locale";
-import { colors, gutter, radius } from "../../styles/tokens";
+import { isRtl, type AppLocale } from "../../i18n/locale";
+import { colors, gutter, radius, topSpace } from "../../styles/tokens";
 import { BackButton } from "../../components/ui/ScreenHeader";
-import { fonts, type } from "../../styles/typography";
+import { MenuRow } from "../../components/ui/MenuRow";
+import { type } from "../../styles/typography";
+import { ta } from "../../i18n/app-messages";
+
+/** Push notifications are phone-only; the web preview explains instead. */
+const PUSH_SUPPORTED = Platform.OS !== "web";
 
 export function NotificationSettingsScreen({
   session,
@@ -40,10 +47,9 @@ export function NotificationSettingsScreen({
   const [notice, setNotice] = useState<string | null>(null);
 
   const update = async (next: NotificationPreferences) => {
+    if (!PUSH_SUPPORTED) return;
     if (!session) {
-      setNotice(
-        "Sign in first so your notification preferences can follow you to another device.",
-      );
+      setNotice(ta(locale, "notificationsSignIn"));
       return;
     }
     setBusy(true);
@@ -58,11 +64,11 @@ export function NotificationSettingsScreen({
         ...defaultNotificationPreferences,
         ...response.notificationPreferences,
       });
-    } catch (error) {
+    } catch {
       setNotice(
-        error instanceof Error
-          ? error.message
-          : "Could not update notifications.",
+        next.enabled && !preferences.enabled
+          ? ta(locale, "notificationsEnableFailed")
+          : ta(locale, "notificationsSaveFailed"),
       );
     } finally {
       setBusy(false);
@@ -70,70 +76,98 @@ export function NotificationSettingsScreen({
   };
 
   const Row = ({
+    icon,
     title,
     detail,
     value,
     setting,
+    first = false,
   }: {
+    icon: ComponentProps<typeof Ionicons>["name"];
     title: string;
     detail: string;
     value: boolean;
     setting: keyof NotificationPreferences;
-  }) => (
-    <View
-      style={[
-        styles.row,
-        !preferences.enabled && setting !== "enabled" && styles.rowMuted,
-      ]}
-    >
-      <View style={styles.copy}>
-        <Text style={styles.rowTitle}>{title}</Text>
-        <Text style={styles.rowDetail}>{detail}</Text>
+    first?: boolean;
+  }) => {
+    const master = setting === "enabled";
+    // A topic only counts while notifications are on, so it shows off too.
+    const shown = master ? value : value && preferences.enabled;
+    const disabled =
+      !PUSH_SUPPORTED || busy || (!master && !preferences.enabled);
+    return (
+      <View style={disabled && !master && styles.rowMuted}>
+        <MenuRow
+          detail={detail}
+          divider={!first}
+          icon={icon}
+          title={title}
+          trailing={
+            <Switch
+              accessibilityLabel={title}
+              disabled={disabled}
+              ios_backgroundColor={colors.border}
+              onValueChange={(next) =>
+                void update({ ...preferences, [setting]: next })
+              }
+              thumbColor={colors.white}
+              trackColor={{ false: colors.border, true: colors.primary }}
+              value={shown}
+            />
+          }
+        />
       </View>
-      <Switch
-        disabled={busy || (setting !== "enabled" && !preferences.enabled)}
-        onValueChange={(value) =>
-          void update({ ...preferences, [setting]: value })
-        }
-        thumbColor={value ? colors.lime : colors.white}
-        trackColor={{ false: colors.border, true: colors.primary }}
-        value={value}
-      />
-    </View>
-  );
+    );
+  };
 
   return (
     <ScrollView style={styles.page} contentContainerStyle={styles.content}>
       <View style={styles.back}>
-        <BackButton onPress={onBack} />
+        <BackButton onPress={onBack} rtl={isRtl(locale)} />
       </View>
-      <Text style={styles.title}>Travel notifications</Text>
-      <Text style={styles.intro}>
-        Choose the travel updates that are useful to you. You can change these
-        at any time in the app or device settings.
+      <Text accessibilityRole="header" style={styles.title}>
+        {ta(locale, "travelNotifications")}
       </Text>
-      <View style={styles.card}>
+      <Text style={styles.intro}>{ta(locale, "notificationsIntro")}</Text>
+      {!PUSH_SUPPORTED ? (
+        <View style={styles.note}>
+          <Ionicons
+            color={colors.primary}
+            name="phone-portrait-outline"
+            size={22}
+          />
+          <Text style={styles.noteText}>
+            {ta(locale, "notificationsPhoneOnly")}
+          </Text>
+        </View>
+      ) : null}
+      <View style={styles.list}>
         <Row
-          title="Notifications"
-          detail="Receive chosen updates on this device"
+          first
+          icon="notifications-outline"
+          title={ta(locale, "notifications")}
+          detail={ta(locale, "notificationsDetail")}
           value={preferences.enabled}
           setting="enabled"
         />
         <Row
-          title="Upcoming events"
-          detail="New and upcoming events in Kurdistan"
+          icon="calendar-outline"
+          title={ta(locale, "upcomingEvents")}
+          detail={ta(locale, "upcomingEventsDetail")}
           value={preferences.upcomingEvents}
           setting="upcomingEvents"
         />
         <Row
-          title="Content updates"
-          detail="New stories, guides and destinations"
+          icon="newspaper-outline"
+          title={ta(locale, "contentUpdates")}
+          detail={ta(locale, "contentUpdatesDetail")}
           value={preferences.contentUpdates}
           setting="contentUpdates"
         />
         <Row
-          title="Saved event reminders"
-          detail="A reminder the day before a saved event"
+          icon="alarm-outline"
+          title={ta(locale, "eventReminders")}
+          detail={ta(locale, "eventRemindersDetail")}
           value={preferences.savedEventReminders}
           setting="savedEventReminders"
         />
@@ -141,47 +175,37 @@ export function NotificationSettingsScreen({
       {busy ? (
         <ActivityIndicator color={colors.primary} style={styles.spinner} />
       ) : null}
-      {notice ? <Text style={styles.notice}>{notice}</Text> : null}
+      {notice ? (
+        <Text accessibilityRole="alert" style={styles.notice}>
+          {notice}
+        </Text>
+      ) : null}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   page: { backgroundColor: colors.white, flex: 1 },
-  content: { paddingBottom: 48, paddingHorizontal: gutter, paddingTop: 4 },
+  content: {
+    paddingBottom: 48,
+    paddingHorizontal: gutter,
+    paddingTop: topSpace,
+  },
   back: { marginBottom: 24 },
   title: { ...type.title, color: colors.dark },
   intro: { ...type.body, color: colors.body, marginTop: 12 },
-  card: {
-    backgroundColor: colors.cream,
-    borderRadius: radius.card,
-    marginTop: 24,
-    paddingHorizontal: 18,
-  },
-  row: {
-    alignItems: "center",
-    borderBottomColor: colors.border,
-    borderBottomWidth: 1,
+  note: {
+    alignItems: "flex-start",
+    backgroundColor: colors.primaryTint,
+    borderRadius: radius.media,
     flexDirection: "row",
     gap: 12,
-    paddingVertical: 18,
+    marginTop: 24,
+    padding: 16,
   },
-  rowMuted: { opacity: 0.5 },
-  copy: { flex: 1 },
-  rowTitle: { fontFamily: fonts.bold, color: colors.dark, fontSize: 16 },
-  rowDetail: {
-    fontFamily: fonts.regular,
-    color: colors.body,
-    fontSize: 13,
-    lineHeight: 18,
-    marginTop: 4,
-  },
+  noteText: { ...type.small, color: colors.dark, flex: 1 },
+  list: { marginTop: 16 },
+  rowMuted: { opacity: 0.45 },
   spinner: { marginTop: 20 },
-  notice: {
-    fontFamily: fonts.regular,
-    color: colors.danger,
-    fontSize: 13,
-    lineHeight: 20,
-    marginTop: 18,
-  },
+  notice: { ...type.small, color: colors.danger, marginTop: 16 },
 });

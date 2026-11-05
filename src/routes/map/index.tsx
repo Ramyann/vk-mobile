@@ -35,9 +35,12 @@ import {
   type MapFilters,
 } from "../../lib/map-filters";
 import { openingStatus } from "../../lib/opening-hours";
-import { colors, gutter, radius } from "../../styles/tokens";
+import { colors, gutter, radius, topSpace } from "../../styles/tokens";
 import { fonts, type } from "../../styles/typography";
 import { NativeMap, nativeMapsAvailable } from "./NativeMap";
+import { WebPlacesMap } from "./WebPlacesMap";
+import { ta } from "../../i18n/app-messages";
+import { Rail } from "../../components/ui/Rail";
 
 type Coordinates = { latitude: number; longitude: number };
 const REGION_CENTER: Coordinates = { latitude: 36.3, longitude: 44.4 };
@@ -110,7 +113,7 @@ export function PlacesMapScreen({
   const [notice, setNotice] = useState<string | null>(null);
   const [picking, setPicking] = useState(false);
   const [listOpen, setListOpen] = useState(false);
-  const showList = listOpen || !nativeMapsAvailable;
+  const showList = listOpen;
 
   const distanceTo = (place: MapPlace) =>
     position && isInRegion(position) ? distanceKm(position, place) : undefined;
@@ -131,7 +134,7 @@ export function PlacesMapScreen({
     try {
       const permission = await Location.requestForegroundPermissionsAsync();
       if (!permission.granted) {
-        setNotice("Location permission is needed to sort places by distance.");
+        setNotice(ta(locale, "locationPermission"));
         return;
       }
       const recent = await Location.getLastKnownPositionAsync({
@@ -147,12 +150,25 @@ export function PlacesMapScreen({
         longitude: current.coords.longitude,
       });
     } catch {
-      setNotice("We could not get your current location.");
+      setNotice(ta(locale, "locationFailed"));
     } finally {
       setLocating(false);
     }
   };
 
+  const mapPins = useMemo(
+    () =>
+      visible.map((place) => ({
+        id: place.id,
+        title: place.name,
+        category: place.category,
+        categoryIcon: place.categoryIcon,
+        color: place.color,
+        latitude: place.latitude,
+        longitude: place.longitude,
+      })),
+    [visible],
+  );
   const camera = selected
     ? { coordinates: selected, zoom: 13 }
     : { coordinates: position ?? REGION_CENTER, zoom: position ? 9 : 6.6 };
@@ -169,7 +185,7 @@ export function PlacesMapScreen({
     <View style={styles.controls}>
       <View style={styles.searchRow}>
         <Pressable
-          accessibilityLabel="Go back"
+          accessibilityLabel={ta(locale, "goBack")}
           accessibilityRole="button"
           onPress={onBack}
           style={[
@@ -231,11 +247,10 @@ export function PlacesMapScreen({
           </Pressable>
         </View>
       </View>
-      <ScrollView
+      <Rail
+        rtl={isRtl(locale)}
         contentContainerStyle={styles.chips}
-        horizontal
         keyboardShouldPersistTaps="handled"
-        showsHorizontalScrollIndicator={false}
       >
         <Chip
           label={t("exploreMap.all")}
@@ -257,7 +272,7 @@ export function PlacesMapScreen({
             }
           />
         ))}
-      </ScrollView>
+      </Rail>
       {picking ? (
         <View style={[styles.menu, floating]}>
           {[
@@ -302,7 +317,7 @@ export function PlacesMapScreen({
 
   if (showList)
     return (
-      <View style={[styles.listPage, { paddingTop: insets.top + 4 }]}>
+      <View style={[styles.listPage, { paddingTop: insets.top + topSpace }]}>
         <StatusBar style="dark" />
         {controls}
         <FlatList
@@ -326,25 +341,13 @@ export function PlacesMapScreen({
                     onPress={() => setFilters(EMPTY_MAP_FILTERS)}
                   />
                 ) : null}
-                {nativeMapsAvailable ? (
-                  <Button
-                    kind="quiet"
-                    label={t("exploreMap.hideList")}
-                    onPress={() => setListOpen(false)}
-                  />
-                ) : (
-                  <LocateButton
-                    locating={locating}
-                    onPress={() => void locate()}
-                  />
-                )}
+                <Button
+                  kind="quiet"
+                  label={t("exploreMap.hideList")}
+                  onPress={() => setListOpen(false)}
+                />
               </View>
               {notice ? <Text style={styles.notice}>{notice}</Text> : null}
-              {!nativeMapsAvailable ? (
-                <Text style={styles.notice}>
-                  {t("exploreMap.mapUnavailable")}
-                </Text>
-              ) : null}
             </View>
           }
           ListEmptyComponent={
@@ -364,10 +367,8 @@ export function PlacesMapScreen({
               locale={locale}
               place={item}
               onPress={() => {
-                if (nativeMapsAvailable) {
-                  setSelectedId(item.id);
-                  setListOpen(false);
-                } else onOpen(toContentItem(item));
+                setSelectedId(item.id);
+                setListOpen(false);
               }}
             />
           )}
@@ -379,36 +380,37 @@ export function PlacesMapScreen({
     <View style={styles.mapPage}>
       <StatusBar style="dark" />
       <View style={StyleSheet.absoluteFill}>
-        <NativeMap
-          camera={camera}
-          onPick={setSelectedId}
-          pins={visible.map((place) => ({
-            id: place.id,
-            title: place.name,
-            category: place.category,
-            categoryIcon: place.categoryIcon,
-            color: place.color,
-            latitude: place.latitude,
-            longitude: place.longitude,
-          }))}
-          showsLocation={Boolean(position)}
-        />
+        {nativeMapsAvailable ? (
+          <NativeMap
+            camera={camera}
+            onPick={setSelectedId}
+            pins={mapPins}
+            showsLocation={Boolean(position)}
+          />
+        ) : (
+          // Expo Go and the web preview: the website's MapLibre basemap.
+          <WebPlacesMap
+            camera={camera}
+            insets={{ top: insets.top + topSpace + 110, bottom: 280 }}
+            onPick={setSelectedId}
+            pins={mapPins}
+            selectedId={selected?.id ?? null}
+          />
+        )}
       </View>
-      <View style={{ paddingTop: insets.top + 8 }}>{controls}</View>
+      <View style={{ paddingTop: insets.top + topSpace }}>{controls}</View>
       <View pointerEvents="box-none" style={styles.bottom}>
         <View pointerEvents="box-none" style={styles.locateWrap}>
           {notice ? (
             <Text style={[styles.toast, floating]}>{notice}</Text>
           ) : null}
-          <LocateButton locating={locating} onPress={() => void locate()} />
+          <LocateButton
+            label={ta(locale, "useMyLocation")}
+            locating={locating}
+            onPress={() => void locate()}
+          />
         </View>
-        <View
-          style={[
-            styles.sheet,
-            floating,
-            { paddingBottom: insets.bottom + 12 },
-          ]}
-        >
+        <View style={[styles.sheet, floating, { paddingBottom: 16 }]}>
           <View style={styles.handle} />
           {selected ? (
             <PlaceSheet
@@ -452,14 +454,16 @@ export function PlacesMapScreen({
 
 function LocateButton({
   locating,
+  label,
   onPress,
 }: {
   locating: boolean;
+  label: string;
   onPress: () => void;
 }) {
   return (
     <Pressable
-      accessibilityLabel="Use my location"
+      accessibilityLabel={label}
       accessibilityRole="button"
       disabled={locating}
       onPress={onPress}

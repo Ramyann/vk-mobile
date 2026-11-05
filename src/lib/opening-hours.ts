@@ -119,12 +119,17 @@ export function openingStatus(
  * "Monday: 9:00 am – 5:00 pm" for each day, or one line when all seven days
  * share the same hours.
  */
-export function summariseHours(lines: string[], open24Label: string): string {
+export function summariseHours(
+  lines: string[],
+  open24Label: string,
+  everyDay: (hours: string) => string = (hours) => `${hours}, every day`,
+  everyDayFrom: (hours: string) => string = (hours) => `Every day, ${hours}`,
+): string {
   const ranges = lines.map((line) => line.split(": ").slice(1).join(": "));
   const same =
     lines.length === 7 && ranges.every((range) => range === ranges[0]);
   if (!same) return lines.join("\n");
   return /^12:00 am\s*[–-]\s*11:59 pm$/i.test(ranges[0])
-    ? `${open24Label}, every day`
-    : `Every day, ${ranges[0]}`;
+    ? everyDay(open24Label)
+    : everyDayFrom(ranges[0]);
 }

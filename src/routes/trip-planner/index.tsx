@@ -596,6 +596,7 @@ function PlannerChat({
           />
         </View>
         <TurnstileSheet
+          locale={locale}
           visible={verifyOpen && !verifying}
           onClose={() => setVerifyOpen(false)}
           onToken={(token) => {

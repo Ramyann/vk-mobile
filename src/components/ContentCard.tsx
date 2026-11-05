@@ -5,23 +5,28 @@ import type { AppLocale } from "../i18n/locale";
 import { shortDate } from "../lib/dates";
 import { colors, radius } from "../styles/tokens";
 import { type } from "../styles/typography";
+import { ta } from "../i18n/app-messages";
 
-export const CONTENT_TYPE_LABEL: Record<ContentType, string> = {
-  destination: "Destination",
-  place: "Place",
-  event: "Event",
-  package: "Package",
-  story: "Story",
-};
+const TYPE_KEYS = {
+  destination: "typeDestination",
+  place: "typePlace",
+  event: "typeEvent",
+  package: "typePackage",
+  story: "typeStory",
+} as const;
 
-const TO: Record<AppLocale, string> = { en: "to", ar: "إلى", ckb: "تا" };
+/** "Place", "Event" and so on, in the visitor's language. */
+export const contentTypeLabel = (type: ContentType, locale: AppLocale) =>
+  ta(locale, TYPE_KEYS[type]);
 
 /** The meta line under a title: an event's dates, otherwise its category. */
 export function metaLine(item: ContentItem, locale: AppLocale): string {
   if (item.type === "event" && item.date) {
     const from = shortDate(item.date, locale);
     const to = item.endDate ? shortDate(item.endDate, locale) : "";
-    return to && to !== from ? `${from} ${TO[locale]} ${to}` : from;
+    return to && to !== from
+      ? `${from} ${ta(locale, "dateRangeTo")} ${to}`
+      : from;
   }
   if (item.type === "destination") return "";
   return item.label ?? "";
@@ -63,7 +68,9 @@ export function ContentCard({
       >
         <Thumb uri={item.image} style={styles.rowImage} />
         <View style={styles.rowCopy}>
-          <Text style={styles.typeLabel}>{CONTENT_TYPE_LABEL[item.type]}</Text>
+          <Text style={styles.typeLabel}>
+            {contentTypeLabel(item.type, locale)}
+          </Text>
           <Text numberOfLines={2} style={styles.title}>
             {item.title}
           </Text>

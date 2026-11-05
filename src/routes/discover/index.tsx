@@ -18,18 +18,21 @@ import { ContentCard } from "../../components/ContentCard";
 import { EmptyState } from "../../components/EmptyState";
 import { LoadingState } from "../../components/LoadingState";
 import { Chip } from "../../components/ui/Chip";
-import { navLabels, t, type AppLocale } from "../../i18n/locale";
+import { isRtl, navLabels, t, type AppLocale } from "../../i18n/locale";
 import { foldForSearch } from "../../lib/localized";
-import { colors, gutter, radius } from "../../styles/tokens";
+import { colors, gutter, radius, topSpace } from "../../styles/tokens";
 import { fonts, type } from "../../styles/typography";
+import { useTabBarSpace } from "../../components/ui/TabBar";
+import { ta, type AppMessageKey } from "../../i18n/app-messages";
+import { Rail } from "../../components/ui/Rail";
 
-const FILTERS: Array<{ value: "all" | ContentType; label: string }> = [
-  { value: "all", label: "All" },
-  { value: "destination", label: "Destinations" },
-  { value: "place", label: "Places" },
-  { value: "event", label: "Events" },
-  { value: "package", label: "Packages" },
-  { value: "story", label: "Stories" },
+const FILTERS: Array<{ value: "all" | ContentType; label: AppMessageKey }> = [
+  { value: "all", label: "all" },
+  { value: "destination", label: "destinations" },
+  { value: "place", label: "places" },
+  { value: "event", label: "events" },
+  { value: "package", label: "packages" },
+  { value: "story", label: "stories" },
 ];
 
 export function DiscoverScreen({
@@ -40,6 +43,7 @@ export function DiscoverScreen({
   locale: AppLocale;
 }) {
   const [items, setItems] = useState<ContentItem[]>([]);
+  const tabBarSpace = useTabBarSpace();
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [focused, setFocused] = useState(false);
@@ -83,7 +87,7 @@ export function DiscoverScreen({
           />
           {query ? (
             <Pressable
-              accessibilityLabel="Clear search"
+              accessibilityLabel={ta(locale, "clearSearch")}
               accessibilityRole="button"
               hitSlop={12}
               onPress={() => setQuery("")}
@@ -94,26 +98,25 @@ export function DiscoverScreen({
         </View>
       </View>
       <View>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.chips}
-        >
+        <Rail rtl={isRtl(locale)} contentContainerStyle={styles.chips}>
           {FILTERS.map((option) => (
             <Chip
               key={option.value}
-              label={option.label}
+              label={ta(locale, option.label)}
               selected={filter === option.value}
               onPress={() => setFilter(option.value)}
             />
           ))}
-        </ScrollView>
+        </Rail>
       </View>
       {loading ? (
-        <LoadingState label="Loading the region…" />
+        <LoadingState label={ta(locale, "loading")} />
       ) : (
         <FlatList
-          contentContainerStyle={styles.results}
+          contentContainerStyle={[
+            styles.results,
+            { paddingBottom: tabBarSpace },
+          ]}
           data={visible}
           keyboardShouldPersistTaps="handled"
           keyExtractor={(item) => `${item.type}-${item.id}`}
@@ -130,11 +133,11 @@ export function DiscoverScreen({
           ListEmptyComponent={
             <EmptyState
               title={t(locale, "noResults")}
-              detail="Try a destination, place, package, event or story by name."
+              detail={ta(locale, "noResultsHint")}
               action={
                 query || filter !== "all"
                   ? {
-                      label: "Clear search",
+                      label: ta(locale, "clearSearch"),
                       onPress: () => {
                         setQuery("");
                         setFilter("all");
@@ -156,7 +159,7 @@ const styles = StyleSheet.create({
     gap: 16,
     paddingBottom: 12,
     paddingHorizontal: gutter,
-    paddingTop: 12,
+    paddingTop: topSpace + 8,
   },
   title: { ...type.title, color: colors.dark },
   search: {

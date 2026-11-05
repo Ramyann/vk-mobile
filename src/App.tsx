@@ -1,13 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ComponentProps } from "react";
-import {
-  BackHandler,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { BackHandler, Keyboard, Platform, StyleSheet, View } from "react-native";
 import {
   SafeAreaProvider,
   useSafeAreaInsets,
@@ -32,7 +25,7 @@ import {
   saveSavedContent,
 } from "./lib/saved-content";
 import { colors } from "./styles/tokens";
-import { type } from "./styles/typography";
+import { TabBar, useTabBarHeight } from "./components/ui/TabBar";
 import {
   ChangePasswordScreen,
   ForgotPasswordScreen,
@@ -84,18 +77,33 @@ type Panel =
   | "search";
 type NavigationAction = Tab | "assistant";
 
+/**
+ * Lays the app out right to left for Arabic and Kurdish. Phones read the
+ * `direction` style; React Native Web ignores it and needs the `dir`
+ * attribute, which also gives browsers native right-to-left scrolling.
+ */
+const readingDirection = (rtl: boolean) =>
+  Platform.OS === "web" ? ({ dir: rtl ? "rtl" : "ltr" } as object) : {};
+
 /** Panels that keep their state while a detail screen is open over them. */
 const OVERLAY_PANELS = new Set<Panel>(["map", "trip-planner"]);
 
 const navigationIcons: Array<{
   key: NavigationAction;
   icon: ComponentProps<typeof Ionicons>["name"];
+  activeIcon: ComponentProps<typeof Ionicons>["name"];
+  featured?: boolean;
 }> = [
-  { key: "explore", icon: "home-outline" },
-  { key: "discover", icon: "compass-outline" },
-  { key: "assistant", icon: "chatbubble-outline" },
-  { key: "saved", icon: "bookmark-outline" },
-  { key: "more", icon: "menu-outline" },
+  { key: "explore", icon: "home-outline", activeIcon: "home" },
+  { key: "discover", icon: "compass-outline", activeIcon: "compass" },
+  {
+    key: "assistant",
+    icon: "sparkles-outline",
+    activeIcon: "sparkles",
+    featured: true,
+  },
+  { key: "saved", icon: "bookmark-outline", activeIcon: "bookmark" },
+  { key: "more", icon: "menu-outline", activeIcon: "menu" },
 ];
 
 /**
@@ -115,6 +123,23 @@ export function AppRoot() {
 
 function AppShell() {
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useTabBarHeight();
+  // The bar steps aside while the keyboard is up, so it never covers a field.
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+  useEffect(() => {
+    const show = Keyboard.addListener(
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
+      () => setKeyboardOpen(true),
+    );
+    const hide = Keyboard.addListener(
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
+      () => setKeyboardOpen(false),
+    );
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
   const [tab, setTab] = useState<Tab>("explore");
   const [detail, setDetail] = useState<ContentItem | null>(null);
   const [saved, setSaved] = useState<ContentItem[]>([]);
@@ -412,7 +437,7 @@ function AppShell() {
     ) : panel === "faqs" ? (
       <FaqScreen locale={locale} onBack={() => setPanel(null)} />
     ) : panel === "contact" ? (
-      <ContactScreen onBack={() => setPanel(null)} />
+      <ContactScreen locale={locale} onBack={() => setPanel(null)} />
     ) : panel === "language" ? (
       <LanguageScreen
         locale={locale}
@@ -494,11 +519,19 @@ function AppShell() {
       />
     );
 
-  const showTabs = !detail && !panel && !browseType;
-  // Home's hero and a detail's photo run under the status bar; every other
-  // screen starts below it.
+  // The four tab screens scroll under the floating bar; every other screen
+  // ends above it. Log in, sign up and the chat take the whole screen.
+  const onTab = !detail && !panel && !browseType;
+  const fullScreen =
+    panel === "chat" ||
+    panel === "login" ||
+    panel === "signup" ||
+    panel === "forgot-password";
+  const showTabs = !fullScreen && !keyboardOpen;
+  // Home's hero, a detail's photo and the map run under the status bar;
+  // every other screen starts below it.
   const edgeToEdge =
-    (showTabs && tab === "explore") || Boolean(detail) || panel === "map";
+    (onTab && tab === "explore") || Boolean(detail) || panel === "map";
   return (
     <AppQueryProvider>
       <View
@@ -506,10 +539,17 @@ function AppShell() {
           styles.root,
           !edgeToEdge && { paddingTop: insets.top },
           !showTabs && { paddingBottom: insets.bottom },
+          showTabs && !onTab && { paddingBottom: tabBarHeight },
         ]}
       >
         {edgeToEdge ? null : <StatusBar style="dark" />}
-        <View style={[styles.content, isRtl(locale) && styles.rtl]}>
+        <View
+          {...readingDirection(isRtl(locale))}
+          style={[
+            styles.content,
+            isRtl(locale) && Platform.OS !== "web" && styles.rtl,
+          ]}
+        >
           {screen}
           {/* A place opened from the map or an itinerary sits on top, so going
               back returns to the same filters or the same trip. */}
@@ -520,59 +560,21 @@ function AppShell() {
           ) : null}
         </View>
         {showTabs ? (
-          <View
-            accessibilityRole="tablist"
-            style={[
-              styles.tabBar,
-              { paddingBottom: Math.max(insets.bottom, 8) },
-              isRtl(locale) && styles.rtl,
-            ]}
-          >
-            {navigation.map((item) => {
-              const assistant = item.key === "assistant";
-              const active = !assistant && tab === item.key;
-              return (
-                <Pressable
-                  key={item.key}
-                  accessibilityRole="tab"
-                  accessibilityState={{ selected: active }}
-                  accessibilityLabel={item.label}
-                  onPress={() => {
-                    if (assistant) setPanel("chat");
-                    else setTab(item.key as Tab);
-                  }}
-                  style={styles.tab}
-                >
-                  {({ pressed }) => (
-                    <>
-                      <View
-                        style={[
-                          styles.indicator,
-                          active && styles.indicatorActive,
-                          pressed && !active && styles.indicatorPressed,
-                        ]}
-                      >
-                        <Ionicons
-                          color={active ? colors.primary : colors.muted}
-                          name={item.icon}
-                          size={22}
-                        />
-                      </View>
-                      <Text
-                        numberOfLines={1}
-                        style={[
-                          type.tab,
-                          { color: active ? colors.primary : colors.muted },
-                        ]}
-                      >
-                        {item.label}
-                      </Text>
-                    </>
-                  )}
-                </Pressable>
-              );
-            })}
-          </View>
+          <TabBar
+            active={tab}
+            items={navigation}
+            rtl={isRtl(locale)}
+            onPress={(key) => {
+              // A tab always leads back to that tab's top screen.
+              setDetail(null);
+              setBrowseType(null);
+              if (key === "assistant") setPanel("chat");
+              else {
+                setPanel(null);
+                setTab(key as Tab);
+              }
+            }}
+          />
         ) : null}
         <SearchSheet
           visible={panel === "search"}
@@ -590,22 +592,4 @@ const styles = StyleSheet.create({
   content: { flex: 1 },
   rtl: { direction: "rtl" },
   overlay: { backgroundColor: colors.white },
-  tabBar: {
-    backgroundColor: colors.white,
-    borderTopColor: colors.border,
-    borderTopWidth: StyleSheet.hairlineWidth * 2,
-    flexDirection: "row",
-    paddingHorizontal: 8,
-    paddingTop: 8,
-  },
-  tab: { alignItems: "center", flex: 1, gap: 2, minHeight: 46 },
-  indicator: {
-    alignItems: "center",
-    borderRadius: 999,
-    height: 30,
-    justifyContent: "center",
-    width: 56,
-  },
-  indicatorActive: { backgroundColor: colors.lime },
-  indicatorPressed: { backgroundColor: colors.primaryTint },
 });

@@ -4,8 +4,10 @@ import type { ContentItem } from "../../api/content";
 import { ContentCard } from "../../components/ContentCard";
 import { EmptyState } from "../../components/EmptyState";
 import { navLabels, type AppLocale } from "../../i18n/locale";
-import { colors, gutter } from "../../styles/tokens";
+import { colors, gutter, topSpace } from "../../styles/tokens";
 import { type } from "../../styles/typography";
+import { useTabBarSpace } from "../../components/ui/TabBar";
+import { ta } from "../../i18n/app-messages";
 
 export function SavedScreen({
   saved,
@@ -20,13 +22,14 @@ export function SavedScreen({
   onRemove: (item: ContentItem) => void;
   onDiscover: () => void;
 }) {
+  const tabBarSpace = useTabBarSpace();
   return (
     <View style={styles.page}>
       <Text accessibilityRole="header" style={styles.title}>
         {navLabels[locale].saved}
       </Text>
       <FlatList
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, { paddingBottom: tabBarSpace }]}
         data={saved}
         keyExtractor={(item) => `${item.type}-${item.id}`}
         showsVerticalScrollIndicator={false}
@@ -39,7 +42,9 @@ export function SavedScreen({
             onPress={() => onOpen(item)}
             trailing={
               <Pressable
-                accessibilityLabel={`Remove ${item.title} from saved`}
+                accessibilityLabel={ta(locale, "removeFromSavedNamed", {
+                  title: item.title,
+                })}
                 accessibilityRole="button"
                 hitSlop={12}
                 onPress={() => onRemove(item)}
@@ -53,10 +58,10 @@ export function SavedScreen({
         ListEmptyComponent={
           <EmptyState
             icon="bookmark-outline"
-            title="Nothing saved yet"
-            detail="Tap the heart on any place, event or story to keep it here, even offline."
+            title={ta(locale, "savedEmptyTitle")}
+            detail={ta(locale, "savedEmptyBody")}
             action={{
-              label: "Start exploring",
+              label: ta(locale, "startExploring"),
               onPress: onDiscover,
               kind: "primary",
             }}
@@ -74,7 +79,7 @@ const styles = StyleSheet.create({
     color: colors.dark,
     paddingBottom: 12,
     paddingHorizontal: gutter,
-    paddingTop: 12,
+    paddingTop: topSpace + 8,
   },
   list: { flexGrow: 1, paddingBottom: 20, paddingHorizontal: gutter },
   heart: { padding: 4 },

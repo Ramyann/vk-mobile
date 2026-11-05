@@ -27,6 +27,7 @@ import { Button } from "../ui/Button";
 import { MenuRow } from "../ui/MenuRow";
 import { ScreenHeader } from "../ui/ScreenHeader";
 import { TextField } from "../ui/TextField";
+import { ta } from "../../i18n/app-messages";
 
 const messageOf = (error: unknown, fallback: string) =>
   error instanceof Error && error.message ? error.message : fallback;
@@ -513,14 +514,14 @@ export function ProfileScreen({
         <MenuRow
           divider={false}
           icon="git-branch-outline"
-          title="Saved trips"
-          detail="Plans from Plan your trip"
+          title={ta(locale, "savedTrips")}
+          detail={ta(locale, "savedTripsDetail")}
           rtl={rtl}
           onPress={onOpenTrips}
         />
         <MenuRow
           icon="bookmark-outline"
-          title="Saved places"
+          title={ta(locale, "savedPlaces")}
           rtl={rtl}
           onPress={onOpenSaved}
         />
@@ -532,7 +533,7 @@ export function ProfileScreen({
         />
         <MenuRow
           icon="notifications-outline"
-          title="Notifications"
+          title={ta(locale, "notifications")}
           rtl={rtl}
           onPress={onOpenNotifications}
         />

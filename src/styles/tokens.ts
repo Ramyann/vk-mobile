@@ -46,6 +46,12 @@ export const radius = {
 /** The 20pt page gutter every screen uses. */
 export const gutter = 20;
 
+/**
+ * Space between the status bar (or the top of the window) and a screen's
+ * first row: its header, title or the controls floating on a photo.
+ */
+export const topSpace = 16;
+
 /** Shared elevation, kept for sheets and floating map controls. */
 export const shadows = {
   dock: {

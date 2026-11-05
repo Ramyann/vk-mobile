@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { colors, gutter, radius } from "../../styles/tokens";
+import { colors, gutter, radius, topSpace } from "../../styles/tokens";
 import { type } from "../../styles/typography";
 
 /** The 44pt round back button the redesign puts on every inner screen. */
@@ -95,9 +95,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flexDirection: "row",
     gap: 12,
-    paddingBottom: 8,
+    paddingBottom: 12,
     paddingHorizontal: gutter,
-    paddingTop: 4,
+    paddingTop: topSpace,
   },
   title: { ...type.item, color: colors.dark, flex: 1 },
   actions: { flexDirection: "row", gap: 8 },

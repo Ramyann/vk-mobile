@@ -36,6 +36,7 @@ import { ChatMarkdown } from "./ChatMarkdown";
 import { fonts, type } from "../../styles/typography";
 import { Button } from "../ui/Button";
 import { ScreenHeader } from "../ui/ScreenHeader";
+import { ta } from "../../i18n/app-messages";
 
 const MAX_MESSAGE_LENGTH = 1000;
 const TYPE_LABELS = new Set([
@@ -259,18 +260,25 @@ export function ChatScreen({
       <ScrollView
         ref={scrollRef}
         contentContainerStyle={styles.transcript}
-        onContentSizeChange={() =>
-          scrollRef.current?.scrollToEnd({ animated: true })
-        }
+        // Follow the conversation; the welcome screen stays at the top.
+        onContentSizeChange={() => {
+          if (messages.length)
+            scrollRef.current?.scrollToEnd({ animated: true });
+        }}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.disclaimer}>{t("chat.disclaimer")}</Text>
         {!messages.length ? (
           <>
-            <Text accessibilityRole="header" style={styles.welcome}>
-              {t("chat.emptyTitle")}
-            </Text>
-            <View>
+            <View style={styles.intro}>
+              <View style={styles.badge}>
+                <Ionicons color={colors.primary} name="sparkles" size={26} />
+              </View>
+              <Text accessibilityRole="header" style={styles.welcome}>
+                {ta(locale, "assistantHeadline")}
+              </Text>
+              <Text style={styles.welcomeBody}>{t("chat.emptyTitle")}</Text>
+            </View>
+            <View style={styles.starters}>
               {starters.map((question, index) => (
                 <Pressable
                   accessibilityRole="button"
@@ -278,15 +286,21 @@ export function ChatScreen({
                   onPress={() => void send(question)}
                   style={({ pressed }) => [
                     styles.starter,
-                    index > 0 && styles.divider,
                     pressed && styles.starterPressed,
                   ]}
                 >
+                  <View style={styles.starterIcon}>
+                    <Ionicons
+                      color={colors.primary}
+                      name={STARTER_ICONS[index % STARTER_ICONS.length]}
+                      size={20}
+                    />
+                  </View>
                   <Text style={styles.starterText}>{question}</Text>
                   <Ionicons
-                    color={colors.primary}
+                    color={colors.muted}
                     name={isRtl(locale) ? "chevron-back" : "chevron-forward"}
-                    size={20}
+                    size={18}
                   />
                 </Pressable>
               ))}
@@ -371,7 +385,7 @@ export function ChatScreen({
               {!message.streaming && message.handoff === "faq" ? (
                 <Button
                   kind="secondary"
-                  label="Frequently asked questions"
+                  label={ta(locale, "faq")}
                   onPress={onOpenFaqs}
                   style={styles.handoff}
                 />
@@ -457,7 +471,9 @@ export function ChatScreen({
           <Ionicons color={colors.white} name="arrow-up" size={22} />
         </Pressable>
       </View>
+      <Text style={styles.disclaimer}>{t("chat.disclaimer")}</Text>
       <TurnstileSheet
+        locale={locale}
         visible={verifyOpen}
         onClose={() => setVerifyOpen(false)}
         onToken={onVerified}
@@ -465,6 +481,19 @@ export function ChatScreen({
     </KeyboardAvoidingView>
   );
 }
+
+/**
+ * Topic icons for the starter questions, in the order the chat API returns
+ * them: visa, best season, an itinerary, mountains, heritage sites, festivals.
+ */
+const STARTER_ICONS: Array<React.ComponentProps<typeof Ionicons>["name"]> = [
+  "document-text-outline",
+  "sunny-outline",
+  "map-outline",
+  "trail-sign-outline",
+  "library-outline",
+  "musical-notes-outline",
+];
 
 const styles = StyleSheet.create({
   page: { backgroundColor: colors.white, flex: 1 },
@@ -474,17 +503,46 @@ const styles = StyleSheet.create({
     paddingHorizontal: gutter,
     paddingTop: 12,
   },
-  disclaimer: { ...type.caption, color: colors.muted },
-  welcome: { ...type.section, color: colors.dark },
+  disclaimer: {
+    ...type.caption,
+    color: colors.muted,
+    paddingBottom: 8,
+    paddingHorizontal: 16,
+    textAlign: "center",
+  },
+  intro: { gap: 10, paddingBottom: 8, paddingTop: 8 },
+  badge: {
+    alignItems: "center",
+    backgroundColor: colors.lime,
+    borderRadius: radius.pill,
+    height: 56,
+    justifyContent: "center",
+    marginBottom: 6,
+    width: 56,
+  },
+  welcome: { ...type.title, color: colors.dark },
+  welcomeBody: { ...type.body, color: colors.body },
+  starters: { gap: 10 },
   starter: {
     alignItems: "center",
+    backgroundColor: colors.soft,
+    borderRadius: 20,
     flexDirection: "row",
     gap: 12,
-    paddingVertical: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  starterIcon: {
+    alignItems: "center",
+    backgroundColor: colors.white,
+    borderRadius: 12,
+    height: 40,
+    justifyContent: "center",
+    width: 40,
   },
   starterPressed: { backgroundColor: colors.primaryTint },
   divider: { borderTopColor: colors.border, borderTopWidth: 1 },
-  starterText: { ...type.bodyStrong, color: colors.primary, flex: 1 },
+  starterText: { ...type.bodyStrong, color: colors.dark, flex: 1 },
   bubble: { borderRadius: 20, maxWidth: "88%" },
   userBubble: {
     alignSelf: "flex-end",

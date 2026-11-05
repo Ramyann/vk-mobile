@@ -10,27 +10,17 @@ import { useContentList } from "../../hooks/useContentList";
 import { isRtl, t, type AppLocale } from "../../i18n/locale";
 import { colors, gutter } from "../../styles/tokens";
 import { type } from "../../styles/typography";
+import { ta, type AppMessageKey } from "../../i18n/app-messages";
 
-const copy: Record<ContentType, { title: string; empty: string }> = {
-  destination: {
-    title: "Destinations",
-    empty:
-      "Destinations will appear here once they are added in the dashboard.",
-  },
-  place: {
-    title: "Places to see",
-    empty: "Places will appear here once they are added in the dashboard.",
-  },
-  event: { title: "Events", empty: "There are no upcoming events right now." },
-  package: {
-    title: "Travel packages",
-    empty:
-      "Travel packages will appear here once they are added in the dashboard.",
-  },
-  story: {
-    title: "Stories & guides",
-    empty: "Fresh stories and guides will appear here.",
-  },
+const copy: Record<
+  ContentType,
+  { title: AppMessageKey; empty: AppMessageKey }
+> = {
+  destination: { title: "destinations", empty: "emptyList" },
+  place: { title: "placesToSee", empty: "emptyList" },
+  event: { title: "events", empty: "noEvents" },
+  package: { title: "travelPackages", empty: "emptyList" },
+  story: { title: "storiesAndGuides", empty: "emptyList" },
 };
 
 /** "See all" from Home: every item of one type, as Discover rows. */
@@ -52,9 +42,10 @@ export function BrowseScreen({
     <View style={styles.page}>
       <ScreenHeader onBack={onBack} rtl={isRtl(locale)} />
       {loading ? (
-        <LoadingState label="Loading the region…" />
+        <LoadingState label={ta(locale, "loading")} />
       ) : error ? (
         <ErrorState
+          locale={locale}
           detail={t(locale, "connectionError")}
           onRetry={() => void refresh()}
         />
@@ -66,7 +57,7 @@ export function BrowseScreen({
           showsVerticalScrollIndicator={false}
           ListHeaderComponent={
             <Text accessibilityRole="header" style={styles.title}>
-              {page.title}
+              {ta(locale, page.title)}
             </Text>
           }
           renderItem={({ item, index }) => (
@@ -79,14 +70,17 @@ export function BrowseScreen({
             />
           )}
           ListEmptyComponent={
-            <EmptyState title="Nothing here yet" detail={page.empty} />
+            <EmptyState
+              title={ta(locale, "nothingHere")}
+              detail={ta(locale, page.empty)}
+            />
           }
           ListFooterComponent={
             hasNextPage ? (
               <Button
                 fill
                 kind="secondary"
-                label="Load more"
+                label={ta(locale, "loadMore")}
                 loading={loadingMore}
                 onPress={() => void loadMore()}
                 style={styles.more}
