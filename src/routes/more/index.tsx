@@ -1,17 +1,17 @@
+import { Linking, ScrollView, StyleSheet, Text } from "react-native";
+import { MenuGroup, MenuRow } from "../../components/ui/MenuRow";
 import {
-  Linking,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
-import { languageName, type AppLocale } from "../../i18n/locale";
+  isRtl,
+  languageName,
+  navLabels,
+  type AppLocale,
+} from "../../i18n/locale";
 import { webT } from "../../i18n/web";
+import { colors, gutter } from "../../styles/tokens";
+import { type } from "../../styles/typography";
 
 /** The website's Shop action (header and drawer) opens the official store. */
 const SHOP_URL = "https://store.visitkurdistan.krd";
-import { colors, radius } from "../../styles/tokens";
 
 export function MoreScreen({
   onOpenChat,
@@ -37,151 +37,93 @@ export function MoreScreen({
   locale: AppLocale;
 }) {
   const t = webT(locale);
+  const rtl = isRtl(locale);
   return (
     <ScrollView style={styles.page} contentContainerStyle={styles.content}>
-      <Text style={styles.eyebrow}>VISIT KURDISTAN</Text>
-      <Text style={styles.title}>Travel made simpler.</Text>
-      <Pressable onPress={onOpenChat} style={styles.assistantCard}>
-        <Text style={styles.spark}>✦</Text>
-        <Text style={styles.assistantTitle}>Trip assistant</Text>
-        <Text style={styles.assistantBody}>
-          Ask practical questions and find relevant places, events and guides.
-        </Text>
-        <Text style={styles.assistantNote}>Start a conversation ↗</Text>
-      </Pressable>
-      <MenuRow
-        icon="✈"
-        title={t("exploreMap.ctaPrimaryLabel")}
-        subtitle={t("tripPlanner.title")}
-        onPress={onOpenTripPlanner}
-      />
-      <MenuRow
-        icon="⌖"
-        title={t("exploreMap.title")}
-        subtitle={t("destinations.mapCtaSubtitle")}
-        onPress={onOpenMap}
-      />
-      <MenuRow
-        icon="◉"
-        title={
-          signedIn ? t("header.account.menuLabel") : t("header.account.signIn")
-        }
-        subtitle={
-          signedIn
-            ? "Manage your account and password"
-            : t("header.account.signInOrCreate")
-        }
-        onPress={onOpenProfile}
-      />
-      <MenuRow
-        icon="ⓘ"
-        title="Frequently asked questions"
-        subtitle="Helpful travel guidance in the app"
-        onPress={onOpenFaqs}
-      />
-      <MenuRow
-        icon="✉"
-        title="Contact Visit Kurdistan"
-        subtitle="Send a message to the team"
-        onPress={onOpenContact}
-      />
-      <MenuRow
-        icon="⛉"
-        title="Shop"
-        subtitle="store.visitkurdistan.krd"
-        onPress={() => void Linking.openURL(SHOP_URL)}
-      />
-      <MenuRow
-        icon="◌"
-        title="Travel notifications"
-        subtitle="Choose event reminders and updates"
-        onPress={onOpenNotifications}
-      />
-      <MenuRow
-        icon="◎"
-        title="Language"
-        subtitle={languageName(locale)}
-        onPress={onOpenLanguage}
-      />
+      <Text accessibilityRole="header" style={styles.title}>
+        {navLabels[locale].more}
+      </Text>
+      <MenuGroup label="Plan">
+        <MenuRow
+          divider={false}
+          icon="git-branch-outline"
+          title={t("exploreMap.ctaPrimaryLabel")}
+          detail="A day-by-day plan from confirmed places"
+          rtl={rtl}
+          onPress={onOpenTripPlanner}
+        />
+        <MenuRow
+          icon="map-outline"
+          title={t("exploreMap.title")}
+          rtl={rtl}
+          onPress={onOpenMap}
+        />
+        <MenuRow
+          icon="chatbubble-outline"
+          title="Trip assistant"
+          rtl={rtl}
+          onPress={onOpenChat}
+        />
+      </MenuGroup>
+      <MenuGroup label="You">
+        <MenuRow
+          divider={false}
+          icon="person-outline"
+          title={
+            signedIn
+              ? t("header.account.menuLabel")
+              : t("header.account.signInOrCreate")
+          }
+          rtl={rtl}
+          onPress={onOpenProfile}
+        />
+        <MenuRow
+          icon="notifications-outline"
+          title="Travel notifications"
+          rtl={rtl}
+          onPress={onOpenNotifications}
+        />
+        <MenuRow
+          icon="globe-outline"
+          title="Language"
+          detail={languageName(locale)}
+          rtl={rtl}
+          onPress={onOpenLanguage}
+        />
+      </MenuGroup>
+      <MenuGroup label="Help">
+        <MenuRow
+          divider={false}
+          icon="help-circle-outline"
+          title="Frequently asked questions"
+          rtl={rtl}
+          onPress={onOpenFaqs}
+        />
+        <MenuRow
+          icon="mail-outline"
+          title="Contact Visit Kurdistan"
+          rtl={rtl}
+          onPress={onOpenContact}
+        />
+        <MenuRow
+          icon="bag-handle-outline"
+          title="Shop"
+          detail="store.visitkurdistan.krd"
+          rtl={rtl}
+          onPress={() => void Linking.openURL(SHOP_URL)}
+        />
+      </MenuGroup>
     </ScrollView>
   );
 }
-function MenuRow({
-  icon,
-  title,
-  subtitle,
-  onPress,
-}: {
-  icon: string;
-  title: string;
-  subtitle: string;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable onPress={onPress} style={styles.menuRow}>
-      <Text style={styles.icon}>{icon}</Text>
-      <View style={styles.copy}>
-        <Text style={styles.menuTitle}>{title}</Text>
-        <Text style={styles.menuSubtitle}>{subtitle}</Text>
-      </View>
-      <Text style={styles.arrow}>›</Text>
-    </Pressable>
-  );
-}
+
 const styles = StyleSheet.create({
   page: { backgroundColor: colors.white, flex: 1 },
-  content: { gap: 12, padding: 20, paddingBottom: 118 },
-  eyebrow: {
-    color: colors.primary,
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 1.5,
-    marginTop: 2,
+  content: {
+    gap: 8,
+    paddingBottom: 32,
+    paddingHorizontal: gutter,
+    paddingTop: 12,
   },
-  title: {
-    color: colors.dark,
-    fontSize: 34,
-    fontWeight: "900",
-    letterSpacing: -1.1,
-    lineHeight: 39,
-  },
-  assistantCard: {
-    backgroundColor: colors.cream,
-    borderRadius: radius.card,
-    padding: 22,
-    marginTop: 18,
-    marginBottom: 10,
-  },
-  spark: { color: colors.primary, fontSize: 24 },
-  assistantTitle: {
-    color: colors.dark,
-    fontSize: 23,
-    fontWeight: "900",
-    marginTop: 7,
-  },
-  assistantBody: {
-    color: colors.body,
-    fontSize: 14,
-    lineHeight: 20,
-    marginTop: 8,
-  },
-  assistantNote: {
-    color: colors.primary,
-    fontSize: 12,
-    lineHeight: 17,
-    marginTop: 16,
-  },
-  menuRow: {
-    alignItems: "center",
-    borderBottomColor: colors.border,
-    borderBottomWidth: 1,
-    flexDirection: "row",
-    gap: 13,
-    paddingVertical: 17,
-  },
-  icon: { color: colors.primary, fontSize: 22, width: 28 },
-  copy: { flex: 1 },
-  menuTitle: { color: colors.dark, fontSize: 16, fontWeight: "800" },
-  menuSubtitle: { color: colors.body, fontSize: 13, marginTop: 3 },
-  arrow: { color: colors.primary, fontSize: 28 },
+  title: { ...type.title, color: colors.dark },
 });

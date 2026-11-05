@@ -2,6 +2,7 @@ import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { WebView, type WebViewMessageEvent } from "react-native-webview";
 import { WEBSITE_URL } from "../config/environment";
 import { colors, radius } from "../styles/tokens";
+import { fonts } from "../styles/typography";
 
 const TURNSTILE_SITE_KEY = process.env.EXPO_PUBLIC_TURNSTILE_SITE_KEY;
 
@@ -89,8 +90,14 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 20,
   },
-  title: { color: colors.dark, fontSize: 22, fontWeight: "900" },
-  close: { color: colors.primary, fontSize: 15, fontWeight: "800" },
+  title: { fontFamily: fonts.bold, color: colors.dark, fontSize: 22 },
+  close: { fontFamily: fonts.bold, color: colors.primary, fontSize: 15 },
   webView: { flex: 1, marginTop: 14 },
-  error: { color: colors.danger, fontSize: 14, lineHeight: 20, padding: 20 },
+  error: {
+    fontFamily: fonts.regular,
+    color: colors.danger,
+    fontSize: 14,
+    lineHeight: 20,
+    padding: 20,
+  },
 });

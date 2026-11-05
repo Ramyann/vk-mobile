@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  FlatList,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -7,25 +8,30 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import {
   getDiscoverData,
   type ContentItem,
   type ContentType,
 } from "../../api/content";
 import { ContentCard } from "../../components/ContentCard";
-import type { AppLocale } from "../../i18n/locale";
 import { EmptyState } from "../../components/EmptyState";
 import { LoadingState } from "../../components/LoadingState";
-import { colors, radius } from "../../styles/tokens";
+import { Chip } from "../../components/ui/Chip";
+import { navLabels, t, type AppLocale } from "../../i18n/locale";
+import { foldForSearch } from "../../lib/localized";
+import { colors, gutter, radius } from "../../styles/tokens";
+import { fonts, type } from "../../styles/typography";
 
-const filters = [
-  "all",
-  "destination",
-  "place",
-  "event",
-  "package",
-  "story",
-] as const;
+const FILTERS: Array<{ value: "all" | ContentType; label: string }> = [
+  { value: "all", label: "All" },
+  { value: "destination", label: "Destinations" },
+  { value: "place", label: "Places" },
+  { value: "event", label: "Events" },
+  { value: "package", label: "Packages" },
+  { value: "story", label: "Stories" },
+];
+
 export function DiscoverScreen({
   onOpen,
   locale,
@@ -36,6 +42,7 @@ export function DiscoverScreen({
   const [items, setItems] = useState<ContentItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
+  const [focused, setFocused] = useState(false);
   const [filter, setFilter] = useState<"all" | ContentType>("all");
   useEffect(() => {
     setLoading(true);
@@ -44,128 +51,138 @@ export function DiscoverScreen({
       .catch(() => setItems([]))
       .finally(() => setLoading(false));
   }, [locale]);
-  const visible = useMemo(
-    () =>
-      items.filter(
-        (item) =>
-          (filter === "all" || item.type === filter) &&
-          `${item.title} ${item.excerpt} ${item.label ?? ""}`
-            .toLocaleLowerCase()
-            .includes(query.trim().toLocaleLowerCase()),
-      ),
-    [filter, items, query],
-  );
+  const visible = useMemo(() => {
+    const needle = foldForSearch(query);
+    return items.filter(
+      (item) =>
+        (filter === "all" || item.type === filter) &&
+        foldForSearch(
+          `${item.title} ${item.excerpt} ${item.label ?? ""}`,
+        ).includes(needle),
+    );
+  }, [filter, items, query]);
+
   return (
     <View style={styles.page}>
-      <Text style={styles.greeting}>DISCOVER</Text>
-      <Text style={styles.title}>Where will you go?</Text>
-      <View style={styles.searchInput}>
-        <Text style={styles.searchGlyph}>⌕</Text>
-        <TextInput
-          value={query}
-          onChangeText={setQuery}
-          placeholder="Search places and stories"
-          placeholderTextColor={colors.muted}
-          style={styles.input}
-        />
-      </View>
-      <View style={styles.chips}>
-        {filters.map((type) => (
-          <Pressable
-            key={type}
-            onPress={() => setFilter(type)}
-            style={[styles.chip, filter === type && styles.chipActive]}
-          >
-            <Text
-              style={[
-                styles.chipText,
-                filter === type && styles.chipTextActive,
-              ]}
+      <View style={styles.header}>
+        <Text accessibilityRole="header" style={styles.title}>
+          {navLabels[locale].discover}
+        </Text>
+        <View style={[styles.search, focused && styles.searchFocused]}>
+          <Ionicons color={colors.muted} name="search-outline" size={20} />
+          <TextInput
+            accessibilityLabel={t(locale, "search")}
+            value={query}
+            onBlur={() => setFocused(false)}
+            onChangeText={setQuery}
+            onFocus={() => setFocused(true)}
+            placeholder={t(locale, "searchPlaceholder")}
+            placeholderTextColor={colors.muted}
+            returnKeyType="search"
+            style={styles.input}
+          />
+          {query ? (
+            <Pressable
+              accessibilityLabel="Clear search"
+              accessibilityRole="button"
+              hitSlop={12}
+              onPress={() => setQuery("")}
             >
-              {type === "all"
-                ? "All"
-                : `${type[0].toUpperCase()}${type.slice(1)}s`}
-            </Text>
-          </Pressable>
-        ))}
+              <Ionicons color={colors.dark} name="close" size={18} />
+            </Pressable>
+          ) : null}
+        </View>
+      </View>
+      <View>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.chips}
+        >
+          {FILTERS.map((option) => (
+            <Chip
+              key={option.value}
+              label={option.label}
+              selected={filter === option.value}
+              onPress={() => setFilter(option.value)}
+            />
+          ))}
+        </ScrollView>
       </View>
       {loading ? (
         <LoadingState label="Loading the region…" />
       ) : (
-        <ScrollView
+        <FlatList
           contentContainerStyle={styles.results}
+          data={visible}
+          keyboardShouldPersistTaps="handled"
+          keyExtractor={(item) => `${item.type}-${item.id}`}
           showsVerticalScrollIndicator={false}
-        >
-          <Text style={styles.count}>
-            {visible.length
-              ? `${visible.length} places to explore`
-              : "No results found"}
-          </Text>
-          {visible.map((item) => (
+          renderItem={({ item, index }) => (
             <ContentCard
-              key={`${item.type}-${item.id}`}
+              divider={index > 0}
               item={item}
+              locale={locale}
               variant="list"
               onPress={() => onOpen(item)}
             />
-          ))}
-          {!visible.length ? (
+          )}
+          ListEmptyComponent={
             <EmptyState
-              title="Try another search"
-              detail="Search by a city, place, event or story title."
+              title={t(locale, "noResults")}
+              detail="Try a destination, place, package, event or story by name."
+              action={
+                query || filter !== "all"
+                  ? {
+                      label: "Clear search",
+                      onPress: () => {
+                        setQuery("");
+                        setFilter("all");
+                      },
+                    }
+                  : undefined
+              }
             />
-          ) : null}
-        </ScrollView>
+          }
+        />
       )}
     </View>
   );
 }
+
 const styles = StyleSheet.create({
-  page: { backgroundColor: colors.white, flex: 1, paddingTop: 1 },
-  greeting: {
-    color: colors.primary,
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 1.5,
-    marginHorizontal: 20,
-    marginTop: 22,
+  page: { backgroundColor: colors.white, flex: 1 },
+  header: {
+    gap: 16,
+    paddingBottom: 12,
+    paddingHorizontal: gutter,
+    paddingTop: 12,
   },
-  title: {
-    color: colors.dark,
-    fontSize: 34,
-    fontWeight: "900",
-    letterSpacing: -1.1,
-    lineHeight: 39,
-    marginHorizontal: 20,
-    marginTop: 8,
-  },
-  searchInput: {
+  title: { ...type.title, color: colors.dark },
+  search: {
     alignItems: "center",
     backgroundColor: colors.soft,
-    borderRadius: radius.input,
-    flexDirection: "row",
-    marginHorizontal: 20,
-    marginTop: 18,
-    paddingHorizontal: 15,
-  },
-  searchGlyph: { color: colors.primary, fontSize: 22, fontWeight: "700" },
-  input: { color: colors.dark, flex: 1, fontSize: 15, paddingVertical: 15 },
-  chips: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-  },
-  chip: {
-    backgroundColor: colors.soft,
+    borderColor: colors.soft,
     borderRadius: radius.pill,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    borderWidth: 2,
+    flexDirection: "row",
+    gap: 10,
+    height: 52,
+    paddingHorizontal: 16,
   },
-  chipActive: { backgroundColor: colors.primary },
-  chipText: { color: colors.body, fontSize: 13, fontWeight: "700" },
-  chipTextActive: { color: colors.white },
-  results: { padding: 20, paddingTop: 2 },
-  count: { color: colors.body, fontSize: 13, marginBottom: 12 },
+  searchFocused: { borderColor: colors.primary },
+  input: {
+    color: colors.dark,
+    flex: 1,
+    fontFamily: fonts.regular,
+    fontSize: 16,
+    height: "100%",
+  },
+  chips: {
+    gap: 8,
+    paddingBottom: 12,
+    paddingHorizontal: gutter,
+    paddingTop: 4,
+  },
+  results: { flexGrow: 1, paddingHorizontal: gutter },
 });

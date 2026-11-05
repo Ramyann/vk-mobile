@@ -22,7 +22,7 @@ import {
 } from "../../api/chat";
 import { ApiError, isInputBlocked } from "../../api/http";
 import { type ContentItem, type ContentType } from "../../api/content";
-import type { AppLocale } from "../../i18n/locale";
+import { isRtl, type AppLocale } from "../../i18n/locale";
 import { webT } from "../../i18n/web";
 import { hasProhibitedInput } from "../../lib/input-safety";
 import {
@@ -30,9 +30,12 @@ import {
   saveChatSession,
   type ChatSession,
 } from "../../lib/storage";
-import { colors, radius } from "../../styles/tokens";
+import { colors, gutter, radius } from "../../styles/tokens";
 import { TurnstileSheet } from "../TurnstileSheet";
 import { ChatMarkdown } from "./ChatMarkdown";
+import { fonts, type } from "../../styles/typography";
+import { Button } from "../ui/Button";
+import { ScreenHeader } from "../ui/ScreenHeader";
 
 const MAX_MESSAGE_LENGTH = 1000;
 const TYPE_LABELS = new Set([
@@ -234,34 +237,25 @@ export function ChatScreen({
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       style={styles.page}
     >
-      <View style={styles.header}>
-        <Pressable
-          onPress={onBack}
-          accessibilityLabel={t("chat.close")}
-          accessibilityRole="button"
-          style={styles.back}
-        >
-          <Text style={styles.backText}>‹</Text>
-        </Pressable>
-        <View style={styles.headerCopy}>
-          <Text style={styles.eyebrow}>VISIT KURDISTAN</Text>
-          <Text style={styles.title}>{t("chat.title")}</Text>
-        </View>
-        {messages.length ? (
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => {
-              void saveChatSession(null);
-              setSession(null);
-              setMessages([]);
-              setError(null);
-            }}
-            style={styles.clear}
-          >
-            <Text style={styles.clearText}>{t("chat.clear")}</Text>
-          </Pressable>
-        ) : null}
-      </View>
+      <ScreenHeader
+        onBack={onBack}
+        rtl={isRtl(locale)}
+        title={t("chat.title")}
+        actions={
+          messages.length ? (
+            <Button
+              kind="quiet"
+              label={t("chat.clear")}
+              onPress={() => {
+                void saveChatSession(null);
+                setSession(null);
+                setMessages([]);
+                setError(null);
+              }}
+            />
+          ) : undefined
+        }
+      />
       <ScrollView
         ref={scrollRef}
         contentContainerStyle={styles.transcript}
@@ -273,18 +267,27 @@ export function ChatScreen({
         <Text style={styles.disclaimer}>{t("chat.disclaimer")}</Text>
         {!messages.length ? (
           <>
-            <View style={styles.welcome}>
-              <Text style={styles.welcomeBody}>{t("chat.emptyTitle")}</Text>
-            </View>
-            <View style={styles.starters}>
-              {starters.map((question) => (
+            <Text accessibilityRole="header" style={styles.welcome}>
+              {t("chat.emptyTitle")}
+            </Text>
+            <View>
+              {starters.map((question, index) => (
                 <Pressable
                   accessibilityRole="button"
                   key={question}
                   onPress={() => void send(question)}
-                  style={styles.starter}
+                  style={({ pressed }) => [
+                    styles.starter,
+                    index > 0 && styles.divider,
+                    pressed && styles.starterPressed,
+                  ]}
                 >
                   <Text style={styles.starterText}>{question}</Text>
+                  <Ionicons
+                    color={colors.primary}
+                    name={isRtl(locale) ? "chevron-back" : "chevron-forward"}
+                    size={20}
+                  />
                 </Pressable>
               ))}
             </View>
@@ -330,14 +333,23 @@ export function ChatScreen({
                       }}
                       style={styles.suggestion}
                     >
-                      {TYPE_LABELS.has(suggestion.type.toLowerCase()) ? (
-                        <Text style={styles.suggestionType}>
-                          {t(`chat.types.${suggestion.type.toLowerCase()}`)}
+                      <View style={styles.suggestionCopy}>
+                        {TYPE_LABELS.has(suggestion.type.toLowerCase()) ? (
+                          <Text style={styles.suggestionType}>
+                            {t(`chat.types.${suggestion.type.toLowerCase()}`)}
+                          </Text>
+                        ) : null}
+                        <Text style={styles.suggestionText}>
+                          {suggestion.title}
                         </Text>
-                      ) : null}
-                      <Text style={styles.suggestionText}>
-                        {suggestion.title} ↗
-                      </Text>
+                      </View>
+                      <Ionicons
+                        color={colors.dark}
+                        name={
+                          isRtl(locale) ? "chevron-back" : "chevron-forward"
+                        }
+                        size={18}
+                      />
                     </Pressable>
                   ))}
                 </View>
@@ -349,16 +361,20 @@ export function ChatScreen({
                 </Text>
               ) : null}
               {!message.streaming && message.handoff === "contact" ? (
-                <Pressable onPress={onOpenContact} style={styles.handoff}>
-                  <Text style={styles.handoffText}>
-                    {t("tripPlanner.contact.cta")} ↗
-                  </Text>
-                </Pressable>
+                <Button
+                  kind="secondary"
+                  label={t("tripPlanner.contact.cta")}
+                  onPress={onOpenContact}
+                  style={styles.handoff}
+                />
               ) : null}
               {!message.streaming && message.handoff === "faq" ? (
-                <Pressable onPress={onOpenFaqs} style={styles.handoff}>
-                  <Text style={styles.handoffText}>FAQ ↗</Text>
-                </Pressable>
+                <Button
+                  kind="secondary"
+                  label="Frequently asked questions"
+                  onPress={onOpenFaqs}
+                  style={styles.handoff}
+                />
               ) : null}
               {assistant &&
               !message.streaming &&
@@ -389,7 +405,7 @@ export function ChatScreen({
                               ? "thumbs-up-outline"
                               : "thumbs-down-outline"
                           }
-                          size={16}
+                          size={18}
                         />
                       </Pressable>
                     ))
@@ -438,7 +454,7 @@ export function ChatScreen({
             (!input.trim() || sending || blocked) && styles.sendDisabled,
           ]}
         >
-          <Text style={styles.sendText}>↑</Text>
+          <Ionicons color={colors.white} name="arrow-up" size={22} />
         </Pressable>
       </View>
       <TurnstileSheet
@@ -452,133 +468,93 @@ export function ChatScreen({
 
 const styles = StyleSheet.create({
   page: { backgroundColor: colors.white, flex: 1 },
-  header: {
+  transcript: {
+    gap: 14,
+    paddingBottom: 24,
+    paddingHorizontal: gutter,
+    paddingTop: 12,
+  },
+  disclaimer: { ...type.caption, color: colors.muted },
+  welcome: { ...type.section, color: colors.dark },
+  starter: {
     alignItems: "center",
-    borderBottomColor: colors.border,
-    borderBottomWidth: 1,
     flexDirection: "row",
     gap: 12,
+    paddingVertical: 14,
+  },
+  starterPressed: { backgroundColor: colors.primaryTint },
+  divider: { borderTopColor: colors.border, borderTopWidth: 1 },
+  starterText: { ...type.bodyStrong, color: colors.primary, flex: 1 },
+  bubble: { borderRadius: 20, maxWidth: "88%" },
+  userBubble: {
+    alignSelf: "flex-end",
+    backgroundColor: colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  assistantBubble: {
+    alignSelf: "flex-start",
+    backgroundColor: colors.soft,
+    gap: 10,
     padding: 16,
   },
-  headerCopy: { flexShrink: 1 },
-  back: {
-    alignItems: "center",
-    backgroundColor: colors.soft,
-    borderRadius: radius.pill,
-    height: 42,
-    justifyContent: "center",
-    width: 42,
-  },
-  backText: { color: colors.primary, fontSize: 33, lineHeight: 36 },
-  eyebrow: {
-    color: colors.primary,
-    fontSize: 10,
-    fontWeight: "800",
-    letterSpacing: 1.1,
-  },
-  title: { color: colors.dark, fontSize: 18, fontWeight: "900", marginTop: 2 },
-  clear: { marginLeft: "auto", padding: 8 },
-  clearText: { color: colors.primary, fontSize: 13, fontWeight: "800" },
-  transcript: { gap: 12, padding: 20, paddingBottom: 28 },
-  disclaimer: {
-    color: colors.muted,
-    fontSize: 12,
-    lineHeight: 17,
-    textAlign: "center",
-  },
-  welcome: {
-    backgroundColor: colors.cream,
-    borderRadius: radius.card,
-    padding: 22,
-  },
-  welcomeBody: {
-    color: colors.dark,
-    fontSize: 16,
-    fontWeight: "700",
-    lineHeight: 23,
-  },
-  starters: { gap: 9 },
-  starter: {
-    borderColor: colors.primary,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    padding: 15,
-  },
-  starterText: { color: colors.primary, fontSize: 14, fontWeight: "700" },
-  bubble: { borderRadius: 20, maxWidth: "88%", padding: 14 },
-  userBubble: { alignSelf: "flex-end", backgroundColor: colors.primary },
-  assistantBubble: { alignSelf: "flex-start", backgroundColor: colors.soft },
-  bubbleText: { color: colors.dark, fontSize: 15, lineHeight: 22 },
+  bubbleText: { ...type.body, color: colors.dark },
   userBubbleText: { color: colors.white },
-  suggestions: { gap: 8, marginTop: 12 },
-  suggestionsTitle: {
-    color: colors.body,
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
-  },
+  suggestions: { gap: 8 },
+  suggestionsTitle: { ...type.caption, color: colors.muted },
   suggestion: {
+    alignItems: "center",
     backgroundColor: colors.lime,
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
+    borderRadius: radius.thumb,
+    flexDirection: "row",
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
   },
-  suggestionType: { color: colors.primary, fontSize: 11, fontWeight: "800" },
-  suggestionText: { color: colors.dark, fontSize: 13, fontWeight: "800" },
-  mentioned: {
-    color: colors.body,
-    fontSize: 12,
-    lineHeight: 17,
-    marginTop: 10,
-  },
-  handoff: {
-    alignSelf: "flex-start",
-    borderColor: colors.primary,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    marginTop: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  handoffText: { color: colors.primary, fontSize: 13, fontWeight: "800" },
-  feedback: { flexDirection: "row", gap: 14, marginTop: 10 },
-  feedbackThanks: { color: colors.muted, fontSize: 12 },
+  suggestionCopy: { flex: 1 },
+  suggestionType: { ...type.caption, color: colors.primary },
+  suggestionText: { ...type.smallStrong, color: colors.dark },
+  mentioned: { ...type.small, color: colors.body },
+  handoff: { height: 44 },
+  feedback: { flexDirection: "row", gap: 16 },
+  feedbackThanks: { ...type.caption, color: colors.muted },
   thinking: {
     alignItems: "center",
     alignSelf: "flex-start",
     flexDirection: "row",
     gap: 8,
   },
-  thinkingText: { color: colors.body, fontSize: 13 },
-  error: { color: colors.danger, fontSize: 13, lineHeight: 18 },
+  thinkingText: { ...type.small, color: colors.body },
+  error: { ...type.small, color: colors.danger },
   blocked: {
+    ...type.small,
     color: colors.danger,
-    fontSize: 12,
-    lineHeight: 17,
     paddingHorizontal: 16,
     paddingTop: 8,
   },
   composer: {
     alignItems: "flex-end",
+    backgroundColor: colors.white,
     borderTopColor: colors.border,
     borderTopWidth: 1,
     flexDirection: "row",
     gap: 10,
-    padding: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   composerInput: {
     backgroundColor: colors.soft,
-    borderColor: "transparent",
-    borderRadius: 22,
-    borderWidth: 1,
+    borderColor: colors.soft,
+    borderRadius: 24,
+    borderWidth: 2,
     color: colors.dark,
     flex: 1,
-    fontSize: 15,
-    maxHeight: 96,
+    fontFamily: fonts.regular,
+    fontSize: 16,
+    maxHeight: 120,
     minHeight: 48,
-    paddingHorizontal: 15,
-    paddingTop: 13,
+    paddingHorizontal: 16,
+    paddingTop: 12,
   },
   inputInvalid: { borderColor: colors.danger },
   send: {
@@ -590,5 +566,4 @@ const styles = StyleSheet.create({
     width: 48,
   },
   sendDisabled: { opacity: 0.4 },
-  sendText: { color: colors.white, fontSize: 25, fontWeight: "700" },
 });

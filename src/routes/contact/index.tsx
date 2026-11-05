@@ -11,23 +11,24 @@ import {
 import { getFaqs, type FaqItem } from "../../api/content";
 import { FaqAccordion } from "../../components/FaqAccordion";
 import { submitContactInquiry, type ContactDraft } from "../../api/contact";
-import { colors, radius } from "../../styles/tokens";
+import { colors, gutter, radius } from "../../styles/tokens";
+import { Ionicons } from "@expo/vector-icons";
+import { Button } from "../../components/ui/Button";
+import { BackButton } from "../../components/ui/ScreenHeader";
+import { TextField } from "../../components/ui/TextField";
 import { TurnstileSheet } from "../../components/TurnstileSheet";
 import {
   LOCALE_OPTIONS,
   languageName,
   type AppLocale,
 } from "../../i18n/locale";
+import { fonts, type } from "../../styles/typography";
 
 function Back({ onPress }: { onPress: () => void }) {
   return (
-    <Pressable
-      onPress={onPress}
-      accessibilityLabel="Go back"
-      style={styles.back}
-    >
-      <Text style={styles.backText}>‹</Text>
-    </Pressable>
+    <View style={styles.back}>
+      <BackButton onPress={onPress} />
+    </View>
   );
 }
 
@@ -49,7 +50,6 @@ export function FaqScreen({
   return (
     <ScrollView style={styles.page} contentContainerStyle={styles.content}>
       <Back onPress={onBack} />
-      <Text style={styles.eyebrow}>PLAN YOUR VISIT</Text>
       <Text style={styles.title}>Frequently asked questions</Text>
       <Text style={styles.intro}>
         Helpful answers from the Visit Kurdistan team.
@@ -75,7 +75,6 @@ export function LanguageScreen({
   return (
     <ScrollView style={styles.page} contentContainerStyle={styles.content}>
       <Back onPress={onBack} />
-      <Text style={styles.eyebrow}>PREFERENCES</Text>
       <Text style={styles.title}>Language</Text>
       <Text style={styles.intro}>
         Choose the language used for content, FAQs and the trip assistant.
@@ -108,14 +107,11 @@ export function LanguageScreen({
                 {option.label}
               </Text>
             </View>
-            <Text
-              style={[
-                styles.languageCheck,
-                locale === option.code && styles.languageCheckActive,
-              ]}
-            >
-              {locale === option.code ? "✓" : ""}
-            </Text>
+            <View style={styles.languageCheck}>
+              {locale === option.code ? (
+                <Ionicons color={colors.primary} name="checkmark" size={22} />
+              ) : null}
+            </View>
           </Pressable>
         ))}
       </View>
@@ -171,7 +167,6 @@ export function ContactScreen({ onBack }: { onBack: () => void }) {
       keyboardShouldPersistTaps="handled"
     >
       <Back onPress={onBack} />
-      <Text style={styles.eyebrow}>GET IN TOUCH</Text>
       <Text style={styles.title}>Contact us</Text>
       <Text style={styles.intro}>
         Send a message directly to the Visit Kurdistan team.
@@ -206,17 +201,13 @@ export function ContactScreen({ onBack }: { onBack: () => void }) {
         onChangeText={(value) => set("message", value)}
       />
       {notice ? <Text style={styles.notice}>{notice}</Text> : null}
-      <Pressable
-        disabled={sending}
+      <Button
+        fill
+        label="Send message"
+        loading={sending}
         onPress={start}
-        style={[styles.primaryButton, sending && styles.disabled]}
-      >
-        {sending ? (
-          <ActivityIndicator color={colors.white} />
-        ) : (
-          <Text style={styles.primaryButtonText}>Send message</Text>
-        )}
-      </Pressable>
+        style={styles.send}
+      />
       <TurnstileSheet
         visible={verify}
         onClose={() => setVerify(false)}
@@ -239,15 +230,13 @@ function Field({
 }) {
   return (
     <View style={styles.field}>
-      <Text style={styles.label}>{label}</Text>
-      <TextInput
+      <TextField
         {...props}
         autoCapitalize={
           props.keyboardType === "email-address" ? "none" : "sentences"
         }
+        label={label}
         multiline={multiline}
-        placeholderTextColor={colors.muted}
-        style={[styles.input, multiline && styles.messageInput]}
       />
     </View>
   );
@@ -255,55 +244,20 @@ function Field({
 
 const styles = StyleSheet.create({
   page: { backgroundColor: colors.white, flex: 1 },
-  content: { gap: 12, padding: 20, paddingBottom: 44 },
-  back: {
-    alignItems: "center",
-    backgroundColor: colors.soft,
-    borderRadius: radius.pill,
-    height: 44,
-    justifyContent: "center",
-    marginBottom: 14,
-    width: 44,
+  content: {
+    gap: 14,
+    paddingBottom: 44,
+    paddingHorizontal: gutter,
+    paddingTop: 4,
   },
-  backText: { color: colors.primary, fontSize: 35, lineHeight: 36 },
-  eyebrow: {
-    color: colors.primary,
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 1.3,
-  },
-  title: {
-    color: colors.dark,
-    fontSize: 34,
-    fontWeight: "900",
-    letterSpacing: -1.1,
-  },
-  intro: { color: colors.body, fontSize: 15, lineHeight: 22, marginBottom: 10 },
+  back: { marginBottom: 12 },
+  title: { ...type.title, color: colors.dark },
+  intro: { ...type.body, color: colors.body, marginBottom: 8 },
   spinner: { marginTop: 28 },
+  send: { marginTop: 8 },
   nameRow: { flexDirection: "row", gap: 10 },
   field: { flex: 1, gap: 7 },
-  label: { color: colors.dark, fontSize: 13, fontWeight: "800" },
-  input: {
-    backgroundColor: colors.soft,
-    borderRadius: radius.input,
-    color: colors.dark,
-    fontSize: 15,
-    minHeight: 50,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-  messageInput: { minHeight: 130, textAlignVertical: "top" },
-  primaryButton: {
-    alignItems: "center",
-    backgroundColor: colors.primary,
-    borderRadius: radius.pill,
-    justifyContent: "center",
-    marginTop: 10,
-    minHeight: 52,
-  },
-  primaryButtonText: { color: colors.white, fontSize: 15, fontWeight: "800" },
-  disabled: { opacity: 0.65 },
-  notice: { color: colors.primary, fontSize: 14, lineHeight: 20, marginTop: 8 },
+  notice: { ...type.body, color: colors.primary },
   languageList: { gap: 10, marginTop: 8 },
   languageOption: {
     alignItems: "center",
@@ -316,17 +270,27 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   languageOptionActive: { backgroundColor: colors.primary },
-  languageTitle: { color: colors.dark, fontSize: 18, fontWeight: "800" },
+  languageTitle: { fontFamily: fonts.bold, color: colors.dark, fontSize: 18 },
   languageTitleActive: { color: colors.white },
-  languageSubtitle: { color: colors.body, fontSize: 13, marginTop: 3 },
+  languageSubtitle: {
+    fontFamily: fonts.regular,
+    color: colors.body,
+    fontSize: 13,
+    marginTop: 3,
+  },
   languageSubtitleActive: { color: "rgba(255,255,255,0.8)" },
   languageCheck: {
+    fontFamily: fonts.bold,
     color: colors.primary,
     fontSize: 24,
-    fontWeight: "900",
     minWidth: 24,
     textAlign: "center",
   },
   languageCheckActive: { color: colors.lime },
-  languageCurrent: { color: colors.body, fontSize: 13, marginTop: 8 },
+  languageCurrent: {
+    fontFamily: fonts.regular,
+    color: colors.body,
+    fontSize: 13,
+    marginTop: 8,
+  },
 });

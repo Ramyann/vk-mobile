@@ -2,12 +2,16 @@ import { useEffect, useMemo, useState } from "react";
 import type { ComponentProps } from "react";
 import {
   BackHandler,
-  SafeAreaView,
+  Platform,
+  Pressable,
   StyleSheet,
   Text,
   View,
-  Pressable,
 } from "react-native";
+import {
+  SafeAreaProvider,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import * as Linking from "expo-linking";
 import * as Notifications from "expo-notifications";
 import { StatusBar } from "expo-status-bar";
@@ -27,7 +31,8 @@ import {
   removeSavedContent,
   saveSavedContent,
 } from "./lib/saved-content";
-import { colors, shadows } from "./styles/tokens";
+import { colors } from "./styles/tokens";
+import { type } from "./styles/typography";
 import {
   ChangePasswordScreen,
   ForgotPasswordScreen,
@@ -88,7 +93,7 @@ const navigationIcons: Array<{
 }> = [
   { key: "explore", icon: "home-outline" },
   { key: "discover", icon: "compass-outline" },
-  { key: "assistant", icon: "chatbubble-ellipses" },
+  { key: "assistant", icon: "chatbubble-outline" },
   { key: "saved", icon: "bookmark-outline" },
   { key: "more", icon: "menu-outline" },
 ];
@@ -101,6 +106,15 @@ const navigationIcons: Array<{
  * the team already uses for the website.
  */
 export function AppRoot() {
+  return (
+    <SafeAreaProvider>
+      <AppShell />
+    </SafeAreaProvider>
+  );
+}
+
+function AppShell() {
+  const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<Tab>("explore");
   const [detail, setDetail] = useState<ContentItem | null>(null);
   const [saved, setSaved] = useState<ContentItem[]>([]);
@@ -228,6 +242,8 @@ export function AppRoot() {
       const url = response?.notification.request.content.data?.url;
       if (typeof url === "string") openDeepLink(url);
     };
+    // Notifications are phone-only; the web preview skips them.
+    if (Platform.OS === "web") return;
     void Notifications.getLastNotificationResponseAsync().then(redirect);
     const subscription =
       Notifications.addNotificationResponseReceivedListener(redirect);
@@ -374,6 +390,12 @@ export function AppRoot() {
           setPanel(null);
         }}
         onChangePassword={() => setPanel("change-password")}
+        onOpenTrips={() => setPanel("trip-planner")}
+        onOpenSaved={() => {
+          setPanel(null);
+          setTab("saved");
+        }}
+        onOpenNotifications={() => setPanel("notifications")}
       />
     ) : panel === "change-password" && auth ? (
       <ChangePasswordScreen
@@ -445,13 +467,16 @@ export function AppRoot() {
         onBrowse={setBrowseType}
         onOpenMap={() => setPanel("map")}
         onPlanTrip={() => setPanel("trip-planner")}
+        onSearch={() => setPanel("search")}
       />
     ) : tab === "discover" ? (
       <DiscoverScreen locale={locale} onOpen={open} />
     ) : tab === "saved" ? (
       <SavedScreen
         saved={saved}
+        locale={locale}
         onOpen={open}
+        onRemove={toggleSaved}
         onDiscover={() => setTab("discover")}
       />
     ) : (
@@ -469,10 +494,21 @@ export function AppRoot() {
       />
     );
 
+  const showTabs = !detail && !panel && !browseType;
+  // Home's hero and a detail's photo run under the status bar; every other
+  // screen starts below it.
+  const edgeToEdge =
+    (showTabs && tab === "explore") || Boolean(detail) || panel === "map";
   return (
     <AppQueryProvider>
-      <SafeAreaView style={styles.root}>
-        <StatusBar style="dark" />
+      <View
+        style={[
+          styles.root,
+          !edgeToEdge && { paddingTop: insets.top },
+          !showTabs && { paddingBottom: insets.bottom },
+        ]}
+      >
+        {edgeToEdge ? null : <StatusBar style="dark" />}
         <View style={[styles.content, isRtl(locale) && styles.rtl]}>
           {screen}
           {/* A place opened from the map or an itinerary sits on top, so going
@@ -483,72 +519,59 @@ export function AppRoot() {
             </View>
           ) : null}
         </View>
-        {!panel && !detail && !browseType ? (
-          <Pressable
-            accessibilityLabel="Search Visit Kurdistan"
-            accessibilityRole="button"
-            onPress={() => setPanel("search")}
-            style={styles.globalSearch}
+        {showTabs ? (
+          <View
+            accessibilityRole="tablist"
+            style={[
+              styles.tabBar,
+              { paddingBottom: Math.max(insets.bottom, 8) },
+              isRtl(locale) && styles.rtl,
+            ]}
           >
-            <Ionicons color={colors.primary} name="search" size={22} />
-          </Pressable>
-        ) : null}
-        {!detail && !panel && !browseType ? (
-          <View style={styles.navigationShell}>
-            <View style={styles.tabBar}>
-              {navigation.map((item) => {
-                const assistant = item.key === "assistant";
-                const active = !assistant && tab === item.key;
-                return (
-                  <Pressable
-                    key={item.key}
-                    accessibilityRole="tab"
-                    accessibilityState={{ selected: active }}
-                    accessibilityLabel={
-                      assistant ? "Open trip assistant" : item.label
-                    }
-                    onPress={() => {
-                      if (item.key === "assistant") setPanel("chat");
-                      else setTab(item.key);
-                    }}
-                    style={({ pressed }) => [
-                      styles.tab,
-                      assistant && styles.assistantTab,
-                      pressed && styles.tabPressed,
-                    ]}
-                  >
-                    <View
-                      style={[
-                        styles.tabIconWrap,
-                        assistant && styles.assistantIconWrap,
-                        active && styles.activeIconWrap,
-                      ]}
-                    >
-                      <Ionicons
-                        color={
-                          assistant
-                            ? colors.lime
-                            : active
-                              ? colors.primary
-                              : colors.muted
-                        }
-                        name={item.icon}
-                        size={assistant ? 25 : 22}
-                      />
-                    </View>
-                    <Text
-                      style={[
-                        styles.tabLabel,
-                        assistant && styles.assistantLabel,
-                        active && styles.tabLabelActive,
-                      ]}
-                    >
-                      {item.label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
+            {navigation.map((item) => {
+              const assistant = item.key === "assistant";
+              const active = !assistant && tab === item.key;
+              return (
+                <Pressable
+                  key={item.key}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: active }}
+                  accessibilityLabel={item.label}
+                  onPress={() => {
+                    if (assistant) setPanel("chat");
+                    else setTab(item.key as Tab);
+                  }}
+                  style={styles.tab}
+                >
+                  {({ pressed }) => (
+                    <>
+                      <View
+                        style={[
+                          styles.indicator,
+                          active && styles.indicatorActive,
+                          pressed && !active && styles.indicatorPressed,
+                        ]}
+                      >
+                        <Ionicons
+                          color={active ? colors.primary : colors.muted}
+                          name={item.icon}
+                          size={22}
+                        />
+                      </View>
+                      <Text
+                        numberOfLines={1}
+                        style={[
+                          type.tab,
+                          { color: active ? colors.primary : colors.muted },
+                        ]}
+                      >
+                        {item.label}
+                      </Text>
+                    </>
+                  )}
+                </Pressable>
+              );
+            })}
           </View>
         ) : null}
         <SearchSheet
@@ -557,7 +580,7 @@ export function AppRoot() {
           onClose={() => setPanel(null)}
           onOpen={open}
         />
-      </SafeAreaView>
+      </View>
     </AppQueryProvider>
   );
 }
@@ -567,72 +590,22 @@ const styles = StyleSheet.create({
   content: { flex: 1 },
   rtl: { direction: "rtl" },
   overlay: { backgroundColor: colors.white },
-  navigationShell: {
+  tabBar: {
     backgroundColor: colors.white,
-    paddingBottom: 10,
-    paddingHorizontal: 14,
+    borderTopColor: colors.border,
+    borderTopWidth: StyleSheet.hairlineWidth * 2,
+    flexDirection: "row",
+    paddingHorizontal: 8,
     paddingTop: 8,
   },
-  tabBar: {
+  tab: { alignItems: "center", flex: 1, gap: 2, minHeight: 46 },
+  indicator: {
     alignItems: "center",
-    backgroundColor: colors.cream,
-    borderRadius: 31,
-    flexDirection: "row",
-    height: 66,
-    justifyContent: "space-around",
-    paddingHorizontal: 6,
-    ...shadows.dock,
-  },
-  tab: {
-    alignItems: "center",
-    flex: 1,
+    borderRadius: 999,
+    height: 30,
     justifyContent: "center",
-    minWidth: 52,
+    width: 56,
   },
-  tabPressed: { opacity: 0.76, transform: [{ scale: 0.96 }] },
-  tabIconWrap: {
-    alignItems: "center",
-    borderRadius: 18,
-    height: 31,
-    justifyContent: "center",
-    minWidth: 36,
-  },
-  activeIconWrap: { backgroundColor: colors.lime },
-  tabLabel: {
-    color: colors.muted,
-    fontSize: 10,
-    fontWeight: "700",
-    marginTop: 2,
-  },
-  tabLabelActive: { color: colors.primary },
-  assistantTab: {
-    alignSelf: "stretch",
-    justifyContent: "flex-start",
-    paddingTop: 0,
-    position: "relative",
-  },
-  assistantIconWrap: {
-    backgroundColor: colors.primary,
-    borderColor: colors.white,
-    borderRadius: 35,
-    borderWidth: 5,
-    height: 70,
-    marginTop: -31,
-    width: 70,
-    ...shadows.floatingAction,
-  },
-  assistantLabel: { color: colors.primary, fontWeight: "800", marginTop: -2 },
-  globalSearch: {
-    alignItems: "center",
-    backgroundColor: colors.lime,
-    borderRadius: 24,
-    height: 46,
-    justifyContent: "center",
-    position: "absolute",
-    right: 18,
-    top: 56,
-    width: 46,
-    zIndex: 5,
-    ...shadows.dock,
-  },
+  indicatorActive: { backgroundColor: colors.lime },
+  indicatorPressed: { backgroundColor: colors.primaryTint },
 });

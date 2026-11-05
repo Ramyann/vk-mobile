@@ -29,7 +29,17 @@
     },
     "plugins": [
       "expo-secure-store",
-      "expo-font",
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/Gilroy-Regular.ttf",
+            "./assets/fonts/Gilroy-Medium.ttf",
+            "./assets/fonts/Gilroy-SemiBold.ttf",
+            "./assets/fonts/Gilroy-Bold.ttf"
+          ]
+        }
+      ],
       "expo-file-system",
       "expo-location",
       [

@@ -1,46 +1,41 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { FlatList, StyleSheet, Text, View } from "react-native";
 import { type ContentItem, type ContentType } from "../../api/content";
 import { ContentCard } from "../../components/ContentCard";
-import { useContentList } from "../../hooks/useContentList";
-import type { AppLocale } from "../../i18n/locale";
 import { EmptyState } from "../../components/EmptyState";
 import { ErrorState } from "../../components/ErrorState";
 import { LoadingState } from "../../components/LoadingState";
-import { colors, radius } from "../../styles/tokens";
-const copy: Record<
-  ContentType,
-  { eyebrow: string; title: string; empty: string }
-> = {
+import { Button } from "../../components/ui/Button";
+import { ScreenHeader } from "../../components/ui/ScreenHeader";
+import { useContentList } from "../../hooks/useContentList";
+import { isRtl, t, type AppLocale } from "../../i18n/locale";
+import { colors, gutter } from "../../styles/tokens";
+import { type } from "../../styles/typography";
+
+const copy: Record<ContentType, { title: string; empty: string }> = {
   destination: {
-    eyebrow: "WHERE TO GO",
     title: "Destinations",
     empty:
       "Destinations will appear here once they are added in the dashboard.",
   },
   place: {
-    eyebrow: "WHERE TO GO",
     title: "Places to see",
     empty: "Places will appear here once they are added in the dashboard.",
   },
-  event: {
-    eyebrow: "PLAN YOUR VISIT",
-    title: "Events",
-    empty: "There are no upcoming events right now.",
-  },
+  event: { title: "Events", empty: "There are no upcoming events right now." },
   package: {
-    eyebrow: "WHERE TO GO",
     title: "Travel packages",
     empty:
       "Travel packages will appear here once they are added in the dashboard.",
   },
   story: {
-    eyebrow: "TRAVEL IDEAS",
     title: "Stories & guides",
     empty: "Fresh stories and guides will appear here.",
   },
 };
+
+/** "See all" from Home: every item of one type, as Discover rows. */
 export function BrowseScreen({
-  type,
+  type: contentType,
   locale,
   onBack,
   onOpen,
@@ -51,103 +46,67 @@ export function BrowseScreen({
   onOpen: (item: ContentItem) => void;
 }) {
   const { items, loading, error, refresh, hasNextPage, loadingMore, loadMore } =
-    useContentList(type, locale);
-  const page = copy[type];
+    useContentList(contentType, locale);
+  const page = copy[contentType];
   return (
     <View style={styles.page}>
-      <View style={styles.header}>
-        <Pressable
-          onPress={onBack}
-          accessibilityLabel="Go back"
-          style={styles.back}
-        >
-          <Text style={styles.backText}>‹</Text>
-        </Pressable>
-        <View>
-          <Text style={styles.eyebrow}>{page.eyebrow}</Text>
-          <Text style={styles.title}>{page.title}</Text>
-        </View>
-      </View>
+      <ScreenHeader onBack={onBack} rtl={isRtl(locale)} />
       {loading ? (
         <LoadingState label="Loading the region…" />
       ) : error ? (
         <ErrorState
-          detail="Check your connection and try again."
+          detail={t(locale, "connectionError")}
           onRetry={() => void refresh()}
         />
       ) : (
-        <ScrollView
+        <FlatList
           contentContainerStyle={styles.results}
+          data={items}
+          keyExtractor={(item) => `${item.type}-${item.id}`}
           showsVerticalScrollIndicator={false}
-        >
-          {items.map((item) => (
+          ListHeaderComponent={
+            <Text accessibilityRole="header" style={styles.title}>
+              {page.title}
+            </Text>
+          }
+          renderItem={({ item, index }) => (
             <ContentCard
-              key={`${item.type}-${item.id}`}
+              divider={index > 0}
               item={item}
+              locale={locale}
               variant="list"
               onPress={() => onOpen(item)}
             />
-          ))}
-          {hasNextPage ? (
-            <Pressable
-              disabled={loadingMore}
-              onPress={() => void loadMore()}
-              style={styles.loadMore}
-            >
-              <Text style={styles.loadMoreText}>
-                {loadingMore ? "Loading…" : "Load more"}
-              </Text>
-            </Pressable>
-          ) : null}
-          {!items.length ? (
+          )}
+          ListEmptyComponent={
             <EmptyState title="Nothing here yet" detail={page.empty} />
-          ) : null}
-        </ScrollView>
+          }
+          ListFooterComponent={
+            hasNextPage ? (
+              <Button
+                fill
+                kind="secondary"
+                label="Load more"
+                loading={loadingMore}
+                onPress={() => void loadMore()}
+                style={styles.more}
+              />
+            ) : null
+          }
+        />
       )}
     </View>
   );
 }
+
 const styles = StyleSheet.create({
   page: { backgroundColor: colors.white, flex: 1 },
-  header: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 13,
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 16,
-  },
-  back: {
-    alignItems: "center",
-    backgroundColor: colors.soft,
-    borderRadius: radius.pill,
-    height: 44,
-    justifyContent: "center",
-    width: 44,
-  },
-  backText: { color: colors.primary, fontSize: 35, lineHeight: 37 },
-  eyebrow: {
-    color: colors.primary,
-    fontSize: 10,
-    fontWeight: "800",
-    letterSpacing: 1.3,
-  },
+  results: { flexGrow: 1, paddingBottom: 32, paddingHorizontal: gutter },
   title: {
+    ...type.title,
     color: colors.dark,
-    fontSize: 28,
-    fontWeight: "900",
-    letterSpacing: -0.8,
-    marginTop: 3,
+    paddingBottom: 8,
+    paddingTop: 16,
   },
-  results: { padding: 20, paddingTop: 2 },
-  loadMore: {
-    alignItems: "center",
-    borderColor: colors.primary,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    justifyContent: "center",
-    marginTop: 8,
-    minHeight: 48,
-  },
-  loadMoreText: { color: colors.primary, fontSize: 14, fontWeight: "800" },
+  more: { marginTop: 16 },
 });

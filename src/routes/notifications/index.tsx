@@ -19,7 +19,9 @@ import {
 } from "../../lib/notifications";
 import type { AuthSession } from "../../lib/storage";
 import type { AppLocale } from "../../i18n/locale";
-import { colors, radius } from "../../styles/tokens";
+import { colors, gutter, radius } from "../../styles/tokens";
+import { BackButton } from "../../components/ui/ScreenHeader";
+import { fonts, type } from "../../styles/typography";
 
 export function NotificationSettingsScreen({
   session,
@@ -102,14 +104,9 @@ export function NotificationSettingsScreen({
 
   return (
     <ScrollView style={styles.page} contentContainerStyle={styles.content}>
-      <Pressable
-        onPress={onBack}
-        accessibilityLabel="Go back"
-        style={styles.back}
-      >
-        <Text style={styles.backText}>‹</Text>
-      </Pressable>
-      <Text style={styles.eyebrow}>PREFERENCES</Text>
+      <View style={styles.back}>
+        <BackButton onPress={onBack} />
+      </View>
       <Text style={styles.title}>Travel notifications</Text>
       <Text style={styles.intro}>
         Choose the travel updates that are useful to you. You can change these
@@ -151,31 +148,10 @@ export function NotificationSettingsScreen({
 
 const styles = StyleSheet.create({
   page: { backgroundColor: colors.white, flex: 1 },
-  content: { padding: 20, paddingBottom: 48 },
-  back: {
-    alignItems: "center",
-    backgroundColor: colors.soft,
-    borderRadius: radius.pill,
-    height: 44,
-    justifyContent: "center",
-    marginBottom: 30,
-    width: 44,
-  },
-  backText: { color: colors.primary, fontSize: 35, lineHeight: 36 },
-  eyebrow: {
-    color: colors.primary,
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 1.4,
-  },
-  title: {
-    color: colors.dark,
-    fontSize: 34,
-    fontWeight: "900",
-    letterSpacing: -1.1,
-    marginTop: 7,
-  },
-  intro: { color: colors.body, fontSize: 15, lineHeight: 23, marginTop: 14 },
+  content: { paddingBottom: 48, paddingHorizontal: gutter, paddingTop: 4 },
+  back: { marginBottom: 24 },
+  title: { ...type.title, color: colors.dark },
+  intro: { ...type.body, color: colors.body, marginTop: 12 },
   card: {
     backgroundColor: colors.cream,
     borderRadius: radius.card,
@@ -192,8 +168,20 @@ const styles = StyleSheet.create({
   },
   rowMuted: { opacity: 0.5 },
   copy: { flex: 1 },
-  rowTitle: { color: colors.dark, fontSize: 16, fontWeight: "800" },
-  rowDetail: { color: colors.body, fontSize: 13, lineHeight: 18, marginTop: 4 },
+  rowTitle: { fontFamily: fonts.bold, color: colors.dark, fontSize: 16 },
+  rowDetail: {
+    fontFamily: fonts.regular,
+    color: colors.body,
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 4,
+  },
   spinner: { marginTop: 20 },
-  notice: { color: colors.danger, fontSize: 13, lineHeight: 20, marginTop: 18 },
+  notice: {
+    fontFamily: fonts.regular,
+    color: colors.danger,
+    fontSize: 13,
+    lineHeight: 20,
+    marginTop: 18,
+  },
 });

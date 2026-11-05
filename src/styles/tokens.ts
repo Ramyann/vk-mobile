@@ -1,30 +1,52 @@
 /**
- * Visit Kurdistan's mobile tokens, carried over from the 2026 website redesign.
- * The app deliberately uses the same deep purple, ivory cream, lime accents,
- * rounded cards and generous editorial spacing as the public website.
+ * Visit Kurdistan's mobile tokens, from the "VK colour" variables in the
+ * 2026 app redesign (Figma "Visit Kurdistan app redesign 2026", Foundations).
+ * The brand colours are the website's; the greys and surfaces are the app's.
  */
 export const colors = {
+  /** brand/purple: primary actions, links, active states. */
   primary: "#36196D",
-  cream: "#FFFDEB",
+  primaryPressed: "#2A1356",
+  /** brand/purple-tint: pressed quiet and secondary buttons, selected rows. */
+  primaryTint: "#F0ECF6",
   lime: "#EDFF81",
+  limePressed: "#DCEE6A",
+  cream: "#FFFDEB",
+  /** state/success, also the website's teal. */
   teal: "#005E53",
+  /** ink/strong: headings and primary text. */
   dark: "#141414",
-  body: "#5C5C5C",
-  soft: "#F5F5F5",
-  border: "#E8E8E8",
+  /** ink/body: paragraphs. */
+  body: "#4A4A4A",
+  /** ink/muted: meta lines, placeholders, inactive tabs. */
+  muted: "#6B6B6B",
   white: "#FFFFFF",
-  muted: "#A3A3A3",
+  /** surface/sunken: inputs, search fields, assistant replies. */
+  soft: "#F6F5F0",
+  /** line/default: dividers, outlines, chip borders. */
+  border: "#E7E4D8",
   danger: "#CC1D2C",
+  mapLand: "#F2EDD8",
+  mapOutside: "#E9E7E0",
 } as const;
 
 export const radius = {
   pill: 999,
-  card: 28,
-  cardLarge: 36,
-  input: 18,
+  /** Photo cards in rails (destinations). */
+  card: 24,
+  /** Cream and lime panels (map card, assistant replies). */
+  panel: 28,
+  /** Photos inside a card or a list (stories, packages, place hero). */
+  media: 20,
+  /** Small thumbnails in lists. */
+  thumb: 14,
+  input: 16,
 } as const;
 
-/** Shared elevation for floating navigation and the raised assistant action. */
+/** The 20pt page gutter every screen uses. */
+export const gutter = 20;
+
+/** Shared elevation, kept for sheets and floating map controls. */
 export const shadows = {
   dock: {
     elevation: 8,

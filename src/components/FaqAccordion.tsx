@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { FaqItem } from "../api/content";
 import { colors, radius } from "../styles/tokens";
+import { fonts } from "../styles/typography";
 
 export function FaqAccordion({ items }: { items: FaqItem[] }) {
   const [openId, setOpenId] = useState<string | null>(null);
@@ -40,12 +41,23 @@ const styles = StyleSheet.create({
   },
   questionRow: { alignItems: "center", flexDirection: "row", gap: 12 },
   question: {
+    fontFamily: fonts.bold,
     color: colors.dark,
     flex: 1,
     fontSize: 15,
-    fontWeight: "800",
     lineHeight: 21,
   },
-  symbol: { color: colors.primary, fontSize: 25, lineHeight: 28 },
-  answer: { color: colors.body, fontSize: 14, lineHeight: 21, marginTop: 12 },
+  symbol: {
+    fontFamily: fonts.regular,
+    color: colors.primary,
+    fontSize: 25,
+    lineHeight: 28,
+  },
+  answer: {
+    fontFamily: fonts.regular,
+    color: colors.body,
+    fontSize: 14,
+    lineHeight: 21,
+    marginTop: 12,
+  },
 });

@@ -1,12 +1,13 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Platform } from "react-native";
 import { Directory, File, Paths } from "expo-file-system";
 import type { ContentDetail, ContentItem } from "../api/content";
 
 const DETAILS_KEY = "vk-mobile-offline-details";
-const MEDIA_DIRECTORY = new Directory(
-  Paths.document,
-  "visit-kurdistan-offline",
-);
+// Created on first use: the web preview has no document directory, and
+// building one when this module loads would stop the app from starting there.
+const mediaDirectory = () =>
+  new Directory(Paths.document, "visit-kurdistan-offline");
 
 type DetailCache = Record<string, ContentDetail>;
 
@@ -43,12 +44,14 @@ async function saveDetails(details: DetailCache): Promise<void> {
  */
 export async function cacheSavedItem(item: ContentItem): Promise<ContentItem> {
   const source = item.remoteImage ?? item.image;
-  if (!source || source.startsWith("file:")) return item;
+  if (!source || source.startsWith("file:") || Platform.OS === "web")
+    return item;
 
   try {
-    MEDIA_DIRECTORY.create({ idempotent: true, intermediates: true });
+    const directory = mediaDirectory();
+    directory.create({ idempotent: true, intermediates: true });
     const target = new File(
-      MEDIA_DIRECTORY,
+      directory,
       `${safeName(keyFor(item))}${imageExtension(source)}`,
     );
     const local = await File.downloadFileAsync(source, target, {

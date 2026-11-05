@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, type ComponentProps } from "react";
 import {
   ActivityIndicator,
   ImageBackground,
@@ -9,11 +9,27 @@ import {
   Text,
   View,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
+import { StatusBar } from "expo-status-bar";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { type ContentItem } from "../../api/content";
+import { CONTENT_TYPE_LABEL, metaLine } from "../../components/ContentCard";
+import { Button } from "../../components/ui/Button";
+import { BackButton, RoundAction } from "../../components/ui/ScreenHeader";
 import { useContentDetail } from "../../hooks/useContentDetail";
-import type { AppLocale } from "../../i18n/locale";
-import { colors, radius } from "../../styles/tokens";
+import { isRtl, type AppLocale } from "../../i18n/locale";
+import { webT } from "../../i18n/web";
 import { cacheSavedDetail } from "../../lib/offline-content";
+import { openingStatus, summariseHours } from "../../lib/opening-hours";
+import { NativeMap, nativeMapsAvailable } from "../map/NativeMap";
+import { colors, gutter, radius } from "../../styles/tokens";
+import { type } from "../../styles/typography";
+
+type IconName = ComponentProps<typeof Ionicons>["name"];
+
+const PHOTO_HEIGHT = 440;
+
 export function DetailScreen({
   item,
   saved,
@@ -27,221 +43,309 @@ export function DetailScreen({
   onToggleSaved: () => void;
   locale: AppLocale;
 }) {
+  const t = webT(locale);
+  const rtl = isRtl(locale);
+  const insets = useSafeAreaInsets();
   const { detail, loading } = useContentDetail(item, locale, saved);
   const display = detail ?? item;
   useEffect(() => {
     if (saved && detail) void cacheSavedDetail(item, detail);
   }, [detail, item, saved]);
-  const mapUrl =
+
+  const coordinates =
     detail?.latitude !== undefined && detail.longitude !== undefined
-      ? `https://www.google.com/maps/search/?api=1&query=${detail.latitude},${detail.longitude}`
+      ? { latitude: detail.latitude, longitude: detail.longitude }
       : null;
+  const directionsUrl = coordinates
+    ? `https://www.google.com/maps/dir/?api=1&destination=${coordinates.latitude},${coordinates.longitude}`
+    : null;
+
+  const status = detail?.openingHoursRaw?.length
+    ? openingStatus(detail.openingHoursRaw)
+    : null;
+  const statusLine = !status
+    ? null
+    : status.kind === "open24"
+      ? { open: true, label: t("places.open24Hours"), detail: "" }
+      : status.kind === "open"
+        ? {
+            open: true,
+            label: t("exploreMap.openNow"),
+            detail: t("exploreMap.closesAt", { time: status.closesAt }),
+          }
+        : status.kind === "closed"
+          ? {
+              open: false,
+              label: t("exploreMap.closedNow"),
+              detail: t("exploreMap.opensAt", { time: status.opensAt }),
+            }
+          : { open: false, label: t("exploreMap.closedToday"), detail: "" };
+
+  const facts: Array<{ icon: IconName; label: string; value: string }> = [];
+  if (display.type === "event" && display.date)
+    facts.push({
+      icon: "calendar-outline",
+      label: "Dates",
+      value: metaLine(display, locale),
+    });
+  if (detail?.openingHours.length)
+    facts.push({
+      icon: "time-outline",
+      label: t("destinations.openingHours"),
+      value: summariseHours(detail.openingHours, t("places.open24Hours")),
+    });
+  if (detail?.destination)
+    facts.push({
+      icon: "location-outline",
+      label: "Governorate",
+      value: detail.destination,
+    });
+  if (detail?.arrivalAirport)
+    facts.push({
+      icon: "airplane-outline",
+      label: "Arrival airport",
+      value: detail.arrivalAirport,
+    });
+  if (detail?.departureAirport)
+    facts.push({
+      icon: "airplane-outline",
+      label: "Departure airport",
+      value: detail.departureAirport,
+    });
+
+  const about = detail?.body || display.excerpt;
+
   return (
-    <ScrollView
-      style={styles.page}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-    >
-      <View style={styles.media}>
-        {display.image ? (
-          <ImageBackground
-            source={{ uri: display.image }}
-            style={styles.image}
-            imageStyle={styles.imageStyle}
-          />
-        ) : (
-          <View style={styles.fallback} />
-        )}
-        <Pressable onPress={onBack} style={styles.back}>
-          <Text style={styles.backText}>‹</Text>
-        </Pressable>
-        <Pressable
-          accessibilityLabel={saved ? "Remove from saved" : "Save this place"}
-          onPress={onToggleSaved}
-          style={styles.save}
+    <View style={styles.page}>
+      <StatusBar style="light" />
+      <ScrollView showsVerticalScrollIndicator={false}>
+        <ImageBackground
+          source={display.image ? { uri: display.image } : undefined}
+          style={[styles.photo, !display.image && styles.photoFallback]}
         >
-          <Text style={styles.saveText}>{saved ? "♥" : "♡"}</Text>
-        </Pressable>
-      </View>
-      <View style={styles.body}>
-        <Text style={styles.eyebrow}>{display.label || display.type}</Text>
-        <Text style={styles.title}>{display.title}</Text>
-        {display.date ? (
-          <Text style={styles.date}>
-            ◷{" "}
-            {new Date(display.date).toLocaleDateString(undefined, {
-              month: "long",
-              day: "numeric",
-              year: "numeric",
-            })}
-          </Text>
-        ) : null}
-        {detail?.destination ? (
-          <Text style={styles.destination}>⌖ {detail.destination}</Text>
-        ) : null}
-        <Text style={styles.intro}>
-          {display.excerpt ||
-            "Explore more about this remarkable part of Kurdistan."}
-        </Text>
-        <View style={styles.rule} />
-        {loading ? (
-          <View style={styles.loading}>
-            <ActivityIndicator color={colors.primary} />
-            <Text style={styles.loadingText}>Loading full details…</Text>
+          <LinearGradient
+            colors={["rgba(20,20,20,0.45)", "rgba(20,20,20,0)"]}
+            style={styles.topScrim}
+          />
+          <View style={[styles.photoActions, { top: insets.top + 8 }]}>
+            <BackButton onPress={onBack} rtl={rtl} tone="glass" />
+            <RoundAction
+              label={saved ? "Remove from saved" : "Save"}
+              onPress={onToggleSaved}
+              tone="glass"
+            >
+              <Ionicons
+                color={colors.primary}
+                name={saved ? "heart" : "heart-outline"}
+                size={22}
+              />
+            </RoundAction>
           </View>
+        </ImageBackground>
+
+        <View style={styles.content}>
+          <View style={styles.titleBlock}>
+            <Text style={styles.category}>
+              {display.label || CONTENT_TYPE_LABEL[display.type]}
+            </Text>
+            <Text accessibilityRole="header" style={styles.title}>
+              {display.title}
+            </Text>
+            {statusLine ? (
+              <View style={styles.statusRow}>
+                <Ionicons
+                  color={statusLine.open ? colors.teal : colors.danger}
+                  name="time-outline"
+                  size={18}
+                />
+                <Text
+                  style={[
+                    styles.status,
+                    { color: statusLine.open ? colors.teal : colors.danger },
+                  ]}
+                >
+                  {statusLine.label}
+                </Text>
+                {statusLine.detail ? (
+                  <Text style={styles.statusDetail}>{statusLine.detail}</Text>
+                ) : null}
+              </View>
+            ) : null}
+          </View>
+
+          {facts.length ? (
+            <View>
+              {facts.map((fact, index) => (
+                <View
+                  key={fact.label}
+                  style={[styles.fact, index > 0 && styles.divider]}
+                >
+                  <Ionicons color={colors.primary} name={fact.icon} size={22} />
+                  <View style={styles.factCopy}>
+                    <Text style={styles.factLabel}>{fact.label}</Text>
+                    <Text style={styles.factValue}>{fact.value}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          ) : null}
+
+          {loading ? (
+            <View style={styles.loading}>
+              <ActivityIndicator color={colors.primary} />
+            </View>
+          ) : null}
+
+          {about ? (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>About</Text>
+              <Text style={styles.about}>{about}</Text>
+            </View>
+          ) : null}
+
+          {coordinates ? (
+            <View style={styles.sectionWide}>
+              <Text style={styles.sectionTitle}>Location</Text>
+              <Pressable
+                accessibilityLabel="Get directions"
+                accessibilityRole="button"
+                onPress={() =>
+                  directionsUrl && void Linking.openURL(directionsUrl)
+                }
+                style={styles.mapBox}
+              >
+                {nativeMapsAvailable ? (
+                  <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+                    <NativeMap
+                      camera={{ coordinates, zoom: 12 }}
+                      onPick={() => undefined}
+                      pins={[
+                        {
+                          id: display.id,
+                          title: display.title,
+                          color: colors.primary,
+                          ...coordinates,
+                        },
+                      ]}
+                      showsLocation={false}
+                    />
+                  </View>
+                ) : (
+                  <View style={styles.mapFallback}>
+                    <View style={styles.pin} />
+                    <Text style={styles.coordinates}>
+                      {`${coordinates.latitude.toFixed(4)}, ${coordinates.longitude.toFixed(4)}`}
+                    </Text>
+                  </View>
+                )}
+              </Pressable>
+            </View>
+          ) : null}
+
+          {detail?.links.length ? (
+            <View style={styles.links}>
+              {detail.links.map((entry) => (
+                <Button
+                  key={entry.url}
+                  kind="quiet"
+                  label={entry.label}
+                  onPress={() => void Linking.openURL(entry.url)}
+                />
+              ))}
+            </View>
+          ) : null}
+        </View>
+      </ScrollView>
+
+      <View style={styles.actionBar}>
+        {directionsUrl ? (
+          <Button
+            kind="secondary"
+            label={t("exploreMap.directions")}
+            onPress={() => void Linking.openURL(directionsUrl)}
+          />
         ) : null}
-        {detail?.body ? (
-          <>
-            <Text style={styles.sectionTitle}>About</Text>
-            <Text style={styles.text}>{detail.body}</Text>
-          </>
-        ) : null}
-        {detail?.openingHours.length ? (
-          <>
-            <Text style={styles.sectionTitle}>Opening hours</Text>
-            {detail.openingHours.map((hours) => (
-              <Text key={hours} style={styles.hours}>
-                {hours}
-              </Text>
-            ))}
-          </>
-        ) : null}
-        {mapUrl ? (
-          <Pressable
-            onPress={() => void Linking.openURL(mapUrl)}
-            style={styles.mapButton}
-          >
-            <Text style={styles.mapButtonText}>Open in Maps ↗</Text>
-          </Pressable>
-        ) : null}
-        {detail?.links.map((entry) => (
-          <Pressable
-            key={entry.url}
-            onPress={() => void Linking.openURL(entry.url)}
-            style={styles.externalButton}
-          >
-            <Text style={styles.externalButtonText}>{entry.label} ↗</Text>
-          </Pressable>
-        ))}
-        <Pressable style={styles.primaryButton} onPress={onToggleSaved}>
-          <Text style={styles.primaryButtonText}>
-            {saved ? "Saved to your journey" : "Save to your journey"}
-          </Text>
-        </Pressable>
+        <Button
+          kind="primary"
+          label={saved ? "Saved to your journey" : "Save to your journey"}
+          onPress={onToggleSaved}
+          style={styles.saveButton}
+        />
       </View>
-    </ScrollView>
+    </View>
   );
 }
+
 const styles = StyleSheet.create({
   page: { backgroundColor: colors.white, flex: 1 },
-  content: { paddingBottom: 40 },
-  media: { height: 380, position: "relative" },
-  image: { height: "100%", width: "100%" },
-  imageStyle: {
-    borderBottomLeftRadius: radius.cardLarge,
-    borderBottomRightRadius: radius.cardLarge,
-  },
-  fallback: { backgroundColor: colors.primary, height: "100%" },
-  back: {
-    alignItems: "center",
-    backgroundColor: colors.white,
-    borderRadius: radius.pill,
-    height: 44,
-    justifyContent: "center",
-    left: 20,
-    position: "absolute",
-    top: 20,
-    width: 44,
-  },
-  save: {
-    alignItems: "center",
-    backgroundColor: colors.lime,
-    borderRadius: radius.pill,
-    height: 44,
-    justifyContent: "center",
-    position: "absolute",
-    right: 20,
-    top: 20,
-    width: 44,
-  },
-  backText: { color: colors.primary, fontSize: 35, lineHeight: 37 },
-  saveText: { color: colors.primary, fontSize: 23 },
-  body: { padding: 20 },
-  eyebrow: {
-    color: colors.primary,
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
-  },
-  title: {
-    color: colors.dark,
-    fontSize: 34,
-    fontWeight: "900",
-    letterSpacing: -1.1,
-    lineHeight: 39,
-    marginTop: 8,
-  },
-  date: {
-    color: colors.primary,
-    fontSize: 14,
-    fontWeight: "700",
-    marginTop: 12,
-  },
-  destination: {
-    color: colors.primary,
-    fontSize: 14,
-    fontWeight: "700",
-    marginTop: 10,
-  },
-  intro: { color: colors.body, fontSize: 17, lineHeight: 26, marginTop: 20 },
-  rule: { backgroundColor: colors.lime, height: 5, marginTop: 28, width: 52 },
-  loading: {
-    alignItems: "center",
+  photo: { height: PHOTO_HEIGHT, width: "100%" },
+  photoFallback: { backgroundColor: colors.primary },
+  topScrim: { height: 160, left: 0, position: "absolute", right: 0, top: 0 },
+  photoActions: {
     flexDirection: "row",
+    justifyContent: "space-between",
+    left: gutter,
+    position: "absolute",
+    right: gutter,
+  },
+  content: {
+    gap: 20,
+    paddingBottom: 32,
+    paddingHorizontal: gutter,
+    paddingTop: 24,
+  },
+  titleBlock: { gap: 8 },
+  category: { ...type.caption, color: colors.primary },
+  title: { ...type.title, color: colors.dark },
+  statusRow: { alignItems: "center", flexDirection: "row", gap: 6 },
+  status: { ...type.smallStrong },
+  statusDetail: { ...type.small, color: colors.muted },
+  fact: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    gap: 14,
+    paddingVertical: 14,
+  },
+  divider: { borderTopColor: colors.border, borderTopWidth: 1 },
+  factCopy: { flex: 1, gap: 2, marginTop: -2 },
+  factLabel: { ...type.caption, color: colors.muted },
+  factValue: { ...type.bodyStrong, color: colors.dark },
+  loading: { alignItems: "flex-start" },
+  section: { gap: 10 },
+  sectionWide: { gap: 12 },
+  sectionTitle: { ...type.section, color: colors.dark },
+  about: { ...type.bodyLarge, color: colors.body },
+  mapBox: {
+    backgroundColor: colors.mapOutside,
+    borderRadius: radius.media,
+    height: 200,
+    overflow: "hidden",
+  },
+  mapFallback: {
+    alignItems: "center",
+    backgroundColor: colors.mapLand,
+    flex: 1,
     gap: 10,
-    marginTop: 22,
-  },
-  loadingText: { color: colors.body, fontSize: 14 },
-  sectionTitle: {
-    color: colors.dark,
-    fontSize: 22,
-    fontWeight: "900",
-    marginTop: 20,
-  },
-  text: { color: colors.body, fontSize: 15, lineHeight: 23, marginTop: 8 },
-  hours: { color: colors.body, fontSize: 14, lineHeight: 21, marginTop: 5 },
-  mapButton: {
-    alignItems: "center",
-    backgroundColor: colors.lime,
-    borderRadius: radius.pill,
     justifyContent: "center",
-    marginTop: 24,
-    minHeight: 52,
   },
-  mapButtonText: { color: colors.dark, fontSize: 15, fontWeight: "800" },
-  externalButton: {
-    alignItems: "center",
+  pin: {
+    backgroundColor: colors.lime,
     borderColor: colors.primary,
     borderRadius: radius.pill,
-    borderWidth: 1,
-    justifyContent: "center",
-    marginTop: 10,
-    minHeight: 50,
+    borderWidth: 3,
+    height: 18,
+    width: 18,
   },
-  externalButtonText: {
-    color: colors.primary,
-    fontSize: 15,
-    fontWeight: "800",
+  coordinates: { ...type.small, color: colors.muted },
+  links: { alignItems: "flex-start" },
+  actionBar: {
+    backgroundColor: colors.white,
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
+    flexDirection: "row",
+    gap: 12,
+    paddingHorizontal: gutter,
+    paddingVertical: 12,
   },
-  primaryButton: {
-    alignItems: "center",
-    backgroundColor: colors.primary,
-    borderRadius: radius.pill,
-    justifyContent: "center",
-    marginTop: 10,
-    minHeight: 52,
-    paddingHorizontal: 22,
-  },
-  primaryButtonText: { color: colors.white, fontSize: 15, fontWeight: "800" },
+  saveButton: { flex: 1 },
 });

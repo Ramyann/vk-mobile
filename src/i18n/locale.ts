@@ -44,6 +44,9 @@ export const navLabels: Record<
 
 const messages = {
   en: {
+    // From the website: discover.whereToGoEyebrow, search.stories.
+    whereToGo: "Where to go",
+    storiesTitle: "Stories",
     search: "Search",
     closeSearch: "Close search",
     searchPlaceholder: "Search places, events and stories",
@@ -63,6 +66,9 @@ const messages = {
     connectionError: "Check your connection and try again.",
   },
   ar: {
+    // From the website: discover.whereToGoEyebrow, search.stories.
+    whereToGo: "إلى أين تذهب",
+    storiesTitle: "القصص",
     search: "بحث",
     closeSearch: "إغلاق البحث",
     searchPlaceholder: "ابحث عن الأماكن والفعاليات والقصص",
@@ -82,6 +88,9 @@ const messages = {
     connectionError: "تحقق من الاتصال وحاول مرة أخرى.",
   },
   ckb: {
+    // From the website: discover.whereToGoEyebrow, search.stories.
+    whereToGo: "بۆ کوێ بڕۆیت",
+    storiesTitle: "چیرۆکەکان",
     search: "گەڕان",
     closeSearch: "داخستنی گەڕان",
     searchPlaceholder: "گەڕان بۆ شوێن و ڕووداو و چیرۆک",

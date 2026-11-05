@@ -34,7 +34,7 @@ import {
 } from "../../api/trip-planner";
 import { TurnstileSheet } from "../../components/TurnstileSheet";
 import { WEBSITE_URL } from "../../config/environment";
-import type { AppLocale } from "../../i18n/locale";
+import { isRtl, type AppLocale } from "../../i18n/locale";
 import { webT } from "../../i18n/web";
 import { hasProhibitedInput } from "../../lib/input-safety";
 import { formatNumber } from "../../lib/localized";
@@ -68,7 +68,11 @@ import {
   type Answers,
   type QuestionId,
 } from "../../lib/trip-planner-script";
-import { colors, radius } from "../../styles/tokens";
+import { colors, gutter, radius } from "../../styles/tokens";
+import { fonts, type } from "../../styles/typography";
+import { Button } from "../../components/ui/Button";
+import { Chip as FilterChip } from "../../components/ui/Chip";
+import { RoundAction, ScreenHeader } from "../../components/ui/ScreenHeader";
 
 type T = ReturnType<typeof webT>;
 type Mode =
@@ -140,7 +144,11 @@ export function TripPlannerScreen({
 
   if (!session)
     return (
-      <Page onBack={onBack} t={t}>
+      <Page
+        locale={locale}
+        onBack={onBack}
+        title={t("exploreMap.ctaPrimaryLabel")}
+      >
         <Intro t={t} />
         <View style={styles.card}>
           <Text style={styles.cardBody}>{t("auth.plannerNote")}</Text>
@@ -198,12 +206,20 @@ export function TripPlannerScreen({
 
 function Page({
   onBack,
-  t,
+  locale,
+  title,
+  progress,
+  actions,
   children,
   scrollRef,
 }: {
   onBack: () => void;
-  t: T;
+  locale: AppLocale;
+  /** Shown beside the back button. */
+  title?: string;
+  /** Answered so far, as a caption and a bar under the header. */
+  progress?: { done: number; total: number; label: string };
+  actions?: ReactNode;
   children: ReactNode;
   scrollRef?: React.RefObject<ScrollView | null>;
 }) {
@@ -212,6 +228,32 @@ function Page({
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       style={styles.page}
     >
+      <ScreenHeader
+        actions={
+          progress ? (
+            <Text style={styles.progressText}>{progress.label}</Text>
+          ) : (
+            actions
+          )
+        }
+        onBack={onBack}
+        rtl={isRtl(locale)}
+        title={title}
+      />
+      {progress ? (
+        <View style={styles.progressTrack}>
+          <View
+            style={[
+              styles.progressFill,
+              {
+                width: `${Math.round(
+                  (progress.done / Math.max(progress.total, 1)) * 100,
+                )}%`,
+              },
+            ]}
+          />
+        </View>
+      ) : null}
       <ScrollView
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
@@ -220,14 +262,6 @@ function Page({
         }
         ref={scrollRef}
       >
-        <Pressable
-          accessibilityLabel={t("exploreMap.closeCard")}
-          accessibilityRole="button"
-          onPress={onBack}
-          style={styles.back}
-        >
-          <Text style={styles.backText}>‹</Text>
-        </Pressable>
         {children}
       </ScrollView>
     </KeyboardAvoidingView>
@@ -237,8 +271,9 @@ function Page({
 function Intro({ t }: { t: T }) {
   return (
     <>
-      <Text style={styles.eyebrow}>{t("tripPlanner.eyebrow")}</Text>
-      <Text style={styles.title}>{t("tripPlanner.title")}</Text>
+      <Text accessibilityRole="header" style={styles.title}>
+        {t("tripPlanner.title")}
+      </Text>
       <Text style={styles.intro}>{t("tripPlanner.intro")}</Text>
     </>
   );
@@ -256,45 +291,59 @@ function PrimaryButton({
   disabled?: boolean;
 }) {
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityState={{ busy, disabled: disabled || busy }}
-      disabled={disabled || busy}
+    <Button
+      disabled={disabled}
+      fill
+      label={label}
+      loading={busy}
       onPress={onPress}
-      style={[styles.primary, (disabled || busy) && styles.dim]}
-    >
-      {busy ? <ActivityIndicator color={colors.white} /> : null}
-      <Text style={styles.primaryText}>{label}</Text>
-    </Pressable>
+    />
   );
 }
 
+/** A Quiet text action, e.g. "Skip this question". */
+function QuietLink({ label, onPress }: { label: string; onPress: () => void }) {
+  return <Button kind="quiet" label={label} onPress={onPress} />;
+}
+
+type IconName = React.ComponentProps<typeof Ionicons>["name"];
+
+/**
+ * A planner answer. With a hint it is the redesign's option card (icon,
+ * title, one line); without one it is a filter chip.
+ */
 function Chip({
   label,
   hint,
+  icon,
   onPress,
   active,
 }: {
   label: string;
   hint?: string;
+  icon?: IconName;
   onPress: () => void;
   active?: boolean;
 }) {
+  if (!hint)
+    return (
+      <FilterChip label={label} onPress={onPress} selected={Boolean(active)} />
+    );
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityState={{ selected: active }}
       onPress={onPress}
-      style={[styles.chip, active && styles.chipActive]}
+      style={({ pressed }) => [
+        styles.option,
+        (active || pressed) && styles.optionActive,
+      ]}
     >
-      <Text style={[styles.chipText, active && styles.chipTextActive]}>
-        {label}
-      </Text>
-      {hint ? (
-        <Text style={[styles.chipHint, active && styles.chipTextActive]}>
-          {hint}
-        </Text>
-      ) : null}
+      {icon ? <Ionicons color={colors.primary} name={icon} size={22} /> : null}
+      <View style={styles.optionCopy}>
+        <Text style={styles.optionTitle}>{label}</Text>
+        <Text style={styles.optionHint}>{hint}</Text>
+      </View>
     </Pressable>
   );
 }
@@ -327,7 +376,11 @@ function SavedTrips({
     }
   };
   return (
-    <Page onBack={onBack} t={t}>
+    <Page
+      locale={locale}
+      onBack={onBack}
+      title={t("exploreMap.ctaPrimaryLabel")}
+    >
       <Intro t={t} />
       <PrimaryButton label={t("tripPlanner.newTrip")} onPress={onNew} />
       {trips.isLoading ? (
@@ -357,11 +410,10 @@ function SavedTrips({
               >
                 <Text style={styles.savedTitle}>{trip.title}</Text>
                 <Text style={styles.savedMeta}>
-                  {shownDate(trip.startDate, locale)} –{" "}
-                  {shownDate(trip.endDate, locale)} ·{" "}
-                  {t("tripPlanner.saved.days", {
-                    count: formatNumber(trip.dayCount, locale),
-                  })}
+                  {`${shownDate(trip.startDate, locale)} – ${shownDate(trip.endDate, locale)}, ${t(
+                    "tripPlanner.saved.days",
+                    { count: formatNumber(trip.dayCount, locale) },
+                  )}`}
                 </Text>
               </Pressable>
               {confirming === trip.shareToken ? (
@@ -503,7 +555,11 @@ function PlannerChat({
 
   if (options.isLoading)
     return (
-      <Page onBack={onBack} t={t}>
+      <Page
+        locale={locale}
+        onBack={onBack}
+        title={t("exploreMap.ctaPrimaryLabel")}
+      >
         <Intro t={t} />
         <ActivityIndicator color={colors.primary} style={styles.loading} />
         <Text style={styles.sectionBody}>{t("tripPlanner.loading")}</Text>
@@ -511,7 +567,11 @@ function PlannerChat({
     );
   if (!data)
     return (
-      <Page onBack={onBack} t={t}>
+      <Page
+        locale={locale}
+        onBack={onBack}
+        title={t("exploreMap.ctaPrimaryLabel")}
+      >
         <Intro t={t} />
         <Text style={styles.error}>{t("tripPlanner.noOptions")}</Text>
       </Page>
@@ -519,7 +579,11 @@ function PlannerChat({
 
   if (!plannerSession)
     return (
-      <Page onBack={onBack} t={t}>
+      <Page
+        locale={locale}
+        onBack={onBack}
+        title={t("exploreMap.ctaPrimaryLabel")}
+      >
         <Intro t={t} />
         <View style={styles.card}>
           <Text style={styles.cardBody}>
@@ -549,7 +613,24 @@ function PlannerChat({
   ).length;
 
   return (
-    <Page onBack={onBack} scrollRef={scrollRef} t={t}>
+    <Page
+      locale={locale}
+      onBack={onBack}
+      progress={
+        openerOpen
+          ? undefined
+          : {
+              done,
+              total: active.length,
+              label: t("tripPlanner.chat.progress", {
+                done: formatNumber(done, locale),
+                total: formatNumber(active.length, locale),
+              }),
+            }
+      }
+      scrollRef={scrollRef}
+      title={t("exploreMap.ctaPrimaryLabel")}
+    >
       <Intro t={t} />
       {openerOpen ? (
         <View style={styles.assistant}>
@@ -596,12 +677,10 @@ function PlannerChat({
             )}
             onPress={() => void readOpener()}
           />
-          <Pressable
+          <QuietLink
+            label={t("tripPlanner.opener.skip")}
             onPress={() => setOpenerOpen(false)}
-            style={styles.linkButton}
-          >
-            <Text style={styles.link}>{t("tripPlanner.opener.skip")}</Text>
-          </Pressable>
+          />
         </View>
       ) : null}
 
@@ -691,12 +770,6 @@ function PlannerChat({
 
       {!openerOpen ? (
         <View style={styles.footer}>
-          <Text style={styles.small}>
-            {t("tripPlanner.chat.progress", {
-              done: formatNumber(done, locale),
-              total: formatNumber(active.length, locale),
-            })}
-          </Text>
           {canBuild(answers) ? (
             <>
               <Text style={styles.sectionBody}>
@@ -759,7 +832,7 @@ function answerLabel(
       const who = t(`tripPlanner.travellerTypes.${answers.travellerType}`);
       return answers.travellerType === "family" ||
         answers.travellerType === "friends"
-        ? `${who} · ${t("tripPlanner.chat.groupSize.answer", {
+        ? `${who}, ${t("tripPlanner.chat.groupSize.answer", {
             count: answers.groupSize ?? 0,
           })}`
         : who;
@@ -775,7 +848,7 @@ function answerLabel(
         ? tagsFor(answers, data)
             .filter((tag) => answers.recommendationTagIds.includes(tag.id))
             .map((tag) => tag.name)
-            .join(" · ")
+            .join(", ")
         : t("tripPlanner.chat.interests.noPreference");
     case "events":
       return t(
@@ -851,20 +924,19 @@ function QuestionControl({
   const [size, setSize] = useState(3);
   const [notes, setNotes] = useState(answers.notes);
   const skip = (
-    <Pressable
+    <QuietLink
+      label={t("tripPlanner.chat.skipQuestion")}
       onPress={() => onChange((value) => skipQuestion(value, id))}
-      style={styles.linkButton}
-    >
-      <Text style={styles.link}>{t("tripPlanner.chat.skipQuestion")}</Text>
-    </Pressable>
+    />
   );
 
   if (id === "dates")
     return (
       <View style={styles.control}>
-        <View style={styles.chips}>
+        <View style={styles.options}>
           {DATE_PRESETS.map((preset) => (
             <Chip
+              icon="calendar-outline"
               hint={t("tripPlanner.chat.dates.presetNights", {
                 count: preset.nights + 1,
               })}
@@ -910,10 +982,13 @@ function QuestionControl({
 
   if (id === "travelStyle")
     return (
-      <View style={[styles.control, styles.chips]}>
+      <View style={[styles.control, styles.options]}>
         {data.travelStyles.map((style) => (
           <Chip
             hint={t(`tripPlanner.travelStyles.${style}.hint`)}
+            icon={
+              style === "touring" ? "git-branch-outline" : "location-outline"
+            }
             key={style}
             label={t(`tripPlanner.travelStyles.${style}.label`)}
             onPress={() => onChange((value) => applyTravelStyle(value, style))}
@@ -1036,14 +1111,10 @@ function QuestionControl({
           onChange={onChange}
           t={t}
         />
-        <Pressable
+        <QuietLink
+          label={t("tripPlanner.chat.interests.skip")}
           onPress={() => onChange(confirmNoInterests)}
-          style={styles.linkButton}
-        >
-          <Text style={styles.link}>
-            {t("tripPlanner.chat.interests.skip")}
-          </Text>
-        </Pressable>
+        />
       </View>
     );
 
@@ -1085,12 +1156,10 @@ function QuestionControl({
         label={t("tripPlanner.chat.notes.send")}
         onPress={() => onChange((value) => applyNotes(value, notes))}
       />
-      <Pressable
+      <QuietLink
+        label={t("tripPlanner.chat.notes.skip")}
         onPress={() => onChange((value) => applyNotes(value, ""))}
-        style={styles.linkButton}
-      >
-        <Text style={styles.link}>{t("tripPlanner.chat.notes.skip")}</Text>
-      </Pressable>
+      />
     </View>
   );
 }
@@ -1130,7 +1199,7 @@ function Stepper({
 /** The website's "Why it fits" line: the planner's reason, else the tags. */
 function whyItFits(stop: TripStop, t: T): string {
   if (stop.why) return stop.why;
-  if (stop.tags.length) return stop.tags.slice(0, 2).join(" · ");
+  if (stop.tags.length) return stop.tags.slice(0, 2).join(", ");
   return stop.destination ?? t("tripPlanner.surprise");
 }
 
@@ -1168,7 +1237,11 @@ function PlanView({
 
   if (!plan)
     return (
-      <Page onBack={onBack} t={t}>
+      <Page
+        locale={locale}
+        onBack={onBack}
+        title={t("exploreMap.ctaPrimaryLabel")}
+      >
         {loaded.isLoading ? (
           <>
             <ActivityIndicator color={colors.primary} style={styles.loading} />
@@ -1200,88 +1273,112 @@ function PlanView({
     onOpen(itemFromHref(item.href, item.kind, item.name, item.image));
 
   return (
-    <Page onBack={onBack} t={t}>
-      <Text style={styles.eyebrow}>{t("tripPlanner.eyebrow")}</Text>
-      <Text style={styles.title}>{plan.title}</Text>
-      {plan.startDate && plan.endDate ? (
-        <Text style={styles.dates}>
-          {shownDate(plan.startDate, locale)} –{" "}
-          {shownDate(plan.endDate, locale)} ·{" "}
-          {formatNumber(plan.days.length, locale)} {t("tripPlanner.tripDays")}
+    <Page
+      actions={
+        shareUrl ? (
+          <RoundAction
+            label={t("exploreMap.share")}
+            onPress={() =>
+              void Share.share({ message: `${plan.title}\n${shareUrl}` })
+            }
+          >
+            <Ionicons color={colors.primary} name="share-outline" size={20} />
+          </RoundAction>
+        ) : undefined
+      }
+      locale={locale}
+      onBack={onBack}
+    >
+      <View style={styles.planHead}>
+        <Text accessibilityRole="header" style={styles.title}>
+          {plan.title}
         </Text>
-      ) : null}
-      {plan.summary ? <Text style={styles.intro}>{plan.summary}</Text> : null}
-      {shareUrl ? (
-        <Pressable
-          accessibilityRole="button"
-          onPress={() =>
-            void Share.share({ message: `${plan.title}\n${shareUrl}` })
-          }
-          style={styles.shareButton}
-        >
-          <Ionicons color={colors.primary} name="share-outline" size={18} />
-          <Text style={styles.link}>{t("exploreMap.share")}</Text>
-        </Pressable>
-      ) : (
-        <Text style={styles.small}>{t("tripPlanner.share.notSaved")}</Text>
-      )}
-
-      {plan.days.map((day) => (
-        <View key={day.day} style={styles.day}>
-          <Text style={styles.dayLabel}>
-            {t("tripPlanner.day")} {formatNumber(day.day, locale)}
+        {plan.startDate && plan.endDate ? (
+          <Text style={styles.dates}>
+            {`${shownDate(plan.startDate, locale)} – ${shownDate(plan.endDate, locale)}, ${formatNumber(plan.days.length, locale)} ${t("tripPlanner.tripDays")}`}
           </Text>
-          <Text style={styles.dayTitle}>{day.title}</Text>
-          {day.summary ? (
-            <Text style={styles.sectionBody}>{day.summary}</Text>
-          ) : null}
-          {day.stops.length ? (
-            day.stops.map((stop) => (
-              <Pressable
-                accessibilityRole="button"
-                key={stop.id}
-                onPress={() =>
-                  onOpen(
-                    itemFromHref(stop.href, "place", stop.name, stop.image),
-                  )
-                }
-                style={styles.stop}
-              >
-                {stop.image ? (
-                  <Image
-                    source={{ uri: stop.image }}
-                    style={styles.stopImage}
-                  />
-                ) : (
-                  <View style={[styles.stopImage, styles.stopFallback]} />
-                )}
-                <View style={styles.stopCopy}>
-                  <Text style={styles.stopTitle}>{stop.name}</Text>
-                  {stop.destination ? (
-                    <Text style={styles.stopMeta}>{stop.destination}</Text>
-                  ) : null}
-                  <Text style={styles.why}>
-                    <Text style={styles.whyLabel}>
-                      {t("tripPlanner.why")}:{" "}
-                    </Text>
-                    {whyItFits(stop, t)}
-                  </Text>
-                </View>
-              </Pressable>
-            ))
-          ) : (
-            <Text style={styles.sectionBody}>
-              {day.summary
-                ? t("tripPlanner.freeDay")
-                : t("tripPlanner.noStops")}
+        ) : null}
+      </View>
+      {plan.summary ? <Text style={styles.intro}>{plan.summary}</Text> : null}
+      {!shareUrl ? (
+        <Text style={styles.small}>{t("tripPlanner.share.notSaved")}</Text>
+      ) : null}
+
+      {plan.days.map((day, dayIndex) => {
+        const before = plan.days
+          .slice(0, dayIndex)
+          .reduce((count, entry) => count + entry.stops.length, 0);
+        return (
+          <View key={day.day} style={styles.day}>
+            <Text style={styles.dayLabel}>
+              {`${t("tripPlanner.day")} ${formatNumber(day.day, locale)}`}
             </Text>
-          )}
-        </View>
-      ))}
+            {day.title ? (
+              <Text style={styles.dayTitle}>{day.title}</Text>
+            ) : null}
+            {day.stops.length ? (
+              day.stops.map((stop, index) => (
+                <Pressable
+                  accessibilityRole="button"
+                  key={stop.id}
+                  onPress={() =>
+                    onOpen(
+                      itemFromHref(stop.href, "place", stop.name, stop.image),
+                    )
+                  }
+                  style={({ pressed }) => [
+                    styles.stop,
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <View style={styles.rail}>
+                    <View style={styles.stopNumber}>
+                      <Text style={styles.stopNumberText}>
+                        {formatNumber(before + index + 1, locale)}
+                      </Text>
+                    </View>
+                    {index < day.stops.length - 1 ? (
+                      <View style={styles.railLine} />
+                    ) : null}
+                  </View>
+                  <View style={styles.stopCopy}>
+                    {stop.image ? (
+                      <Image
+                        source={{ uri: stop.image }}
+                        style={styles.stopImage}
+                      />
+                    ) : (
+                      <View style={[styles.stopImage, styles.stopFallback]} />
+                    )}
+                    <Text style={styles.stopTitle}>{stop.name}</Text>
+                    {stop.destination ? (
+                      <Text style={styles.stopMeta}>{stop.destination}</Text>
+                    ) : null}
+                    <Text style={styles.why}>
+                      <Text style={styles.whyLabel}>
+                        {`${t("tripPlanner.why")}: `}
+                      </Text>
+                      {whyItFits(stop, t)}
+                    </Text>
+                  </View>
+                </Pressable>
+              ))
+            ) : (
+              <View style={styles.freeDay}>
+                <Text style={styles.sectionBody}>
+                  {day.summary || t("tripPlanner.noStops")}
+                </Text>
+              </View>
+            )}
+            {day.stops.length && day.summary ? (
+              <Text style={styles.sectionBody}>{day.summary}</Text>
+            ) : null}
+          </View>
+        );
+      })}
 
       {packages.length ? (
         <>
-          <Text style={styles.small}>{t("tripPlanner.packages.eyebrow")}</Text>
           <Text style={styles.sectionTitle}>
             {packages.every((item) => item.close)
               ? t("tripPlanner.packages.closeTitle")
@@ -1323,20 +1420,15 @@ function PlanView({
           <Text style={styles.cardBody}>
             {t(`tripPlanner.essentials.${key}.body`)}
           </Text>
-          <Pressable
+          <QuietLink
+            label={t(`tripPlanner.essentials.${key}.cta`)}
             onPress={() =>
               void Linking.openURL(websiteUrl(locale, ESSENTIALS[key]))
             }
-            style={styles.linkButton}
-          >
-            <Text style={styles.link}>
-              {t(`tripPlanner.essentials.${key}.cta`)} ↗
-            </Text>
-          </Pressable>
+          />
         </View>
       ))}
       <View style={[styles.card, styles.limeCard]}>
-        <Text style={styles.small}>{t("tripPlanner.contact.eyebrow")}</Text>
         <Text style={styles.cardTitle}>{t("tripPlanner.contact.title")}</Text>
         <Text style={styles.cardBody}>{t("tripPlanner.contact.body")}</Text>
         <PrimaryButton
@@ -1362,20 +1454,24 @@ function Recommendation({
   onPress: () => void;
 }) {
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={styles.stop}>
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [styles.recRow, pressed && styles.pressed]}
+    >
       {item.image ? (
-        <Image source={{ uri: item.image }} style={styles.stopImage} />
+        <Image source={{ uri: item.image }} style={styles.recImage} />
       ) : (
-        <View style={[styles.stopImage, styles.stopFallback]} />
+        <View style={[styles.recImage, styles.stopFallback]} />
       )}
-      <View style={styles.stopCopy}>
+      <View style={styles.recCopy}>
         <Text style={styles.stopMeta}>
           {t(
             item.kind === "package"
               ? "tripPlanner.packages.kindPackage"
               : "tripPlanner.packages.kindEvent",
           )}
-          {item.close ? ` · ${t("tripPlanner.packages.closeBadge")}` : ""}
+          {item.close ? `, ${t("tripPlanner.packages.closeBadge")}` : ""}
         </Text>
         <Text style={styles.stopTitle}>{item.name}</Text>
         <Text style={styles.stopMeta}>
@@ -1387,7 +1483,7 @@ function Recommendation({
               : undefined,
           ]
             .filter(Boolean)
-            .join(" · ")}
+            .join(", ")}
         </Text>
       </View>
     </Pressable>
@@ -1396,119 +1492,98 @@ function Recommendation({
 
 const styles = StyleSheet.create({
   page: { backgroundColor: colors.white, flex: 1 },
-  content: { gap: 12, padding: 20, paddingBottom: 56 },
-  back: {
-    alignItems: "center",
-    backgroundColor: colors.soft,
-    borderRadius: radius.pill,
-    height: 44,
-    justifyContent: "center",
-    width: 44,
+  content: {
+    gap: 14,
+    paddingBottom: 48,
+    paddingHorizontal: gutter,
+    paddingTop: 24,
   },
-  backText: { color: colors.primary, fontSize: 35, lineHeight: 36 },
-  eyebrow: {
-    color: colors.primary,
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 1.4,
+  pressed: { opacity: 0.85 },
+  progressText: { ...type.caption, color: colors.muted },
+  progressTrack: {
+    backgroundColor: colors.border,
+    borderRadius: 2,
+    height: 4,
+    marginHorizontal: gutter,
+    overflow: "hidden",
   },
-  title: {
-    color: colors.dark,
-    fontSize: 32,
-    fontWeight: "900",
-    letterSpacing: -1,
-    lineHeight: 37,
+  progressFill: {
+    backgroundColor: colors.primary,
+    borderRadius: 2,
+    height: 4,
   },
-  intro: { color: colors.body, fontSize: 15, lineHeight: 23 },
-  dates: { color: colors.primary, fontSize: 14, fontWeight: "800" },
+  title: { ...type.title, color: colors.dark },
+  intro: { ...type.body, color: colors.body },
+  small: { ...type.caption, color: colors.muted },
+  spaced: { marginTop: 8 },
+  loading: { marginTop: 24 },
+  error: { ...type.small, color: colors.danger },
+  danger: { ...type.smallStrong, color: colors.danger },
+  link: { ...type.button, color: colors.primary },
+  sectionTitle: { ...type.section, color: colors.dark, marginTop: 16 },
+  sectionBody: { ...type.body, color: colors.body },
   card: {
-    backgroundColor: colors.cream,
-    borderRadius: radius.card,
-    gap: 8,
-    padding: 20,
+    backgroundColor: colors.soft,
+    borderRadius: radius.media,
+    gap: 10,
+    padding: 18,
   },
   limeCard: { backgroundColor: colors.lime },
-  cardTitle: { color: colors.dark, fontSize: 19, fontWeight: "900" },
-  cardBody: { color: colors.body, fontSize: 14, lineHeight: 21 },
-  primary: {
-    alignItems: "center",
-    backgroundColor: colors.primary,
-    borderRadius: radius.pill,
-    flexDirection: "row",
-    gap: 10,
-    justifyContent: "center",
-    marginTop: 6,
-    minHeight: 52,
-    paddingHorizontal: 20,
-  },
-  primaryText: { color: colors.white, fontSize: 15, fontWeight: "800" },
-  dim: { opacity: 0.55 },
-  loading: { marginTop: 24 },
-  sectionTitle: {
-    color: colors.dark,
-    fontSize: 21,
-    fontWeight: "900",
-    marginTop: 14,
-  },
-  sectionBody: { color: colors.body, fontSize: 14, lineHeight: 21 },
-  small: { color: colors.body, fontSize: 12, fontWeight: "700" },
-  spaced: { marginTop: 8 },
-  link: { color: colors.primary, fontSize: 14, fontWeight: "800" },
-  linkButton: { alignSelf: "flex-start", paddingVertical: 8 },
-  danger: { color: colors.danger, fontSize: 14, fontWeight: "800" },
-  error: { color: colors.danger, fontSize: 13, lineHeight: 19 },
-  savedTrip: {
-    alignItems: "center",
-    borderColor: colors.border,
-    borderRadius: 20,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: 12,
-    padding: 14,
-  },
-  savedCopy: { flex: 1 },
-  savedTitle: { color: colors.dark, fontSize: 16, fontWeight: "800" },
-  savedMeta: { color: colors.body, fontSize: 12, marginTop: 4 },
-  confirmRow: { gap: 8 },
+  cardTitle: { ...type.item, color: colors.dark },
+  cardBody: { ...type.small, color: colors.body },
   assistant: {
     alignSelf: "flex-start",
     backgroundColor: colors.soft,
     borderRadius: 20,
+    gap: 10,
     maxWidth: "92%",
-    padding: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
-  assistantText: { color: colors.dark, fontSize: 15, lineHeight: 22 },
+  assistantText: { ...type.body, color: colors.dark },
   answer: {
     alignSelf: "flex-end",
     backgroundColor: colors.primary,
     borderRadius: 20,
-    marginTop: 8,
+    marginTop: 14,
     maxWidth: "88%",
-    padding: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
-  answerText: { color: colors.white, fontSize: 14, fontWeight: "700" },
-  control: { gap: 10, marginTop: 10 },
+  answerText: { ...type.body, color: colors.white },
+  control: { gap: 12, marginTop: 14 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  chip: {
-    borderColor: colors.primary,
-    borderRadius: 18,
+  options: { gap: 10 },
+  option: {
+    alignItems: "center",
+    backgroundColor: colors.white,
+    borderColor: colors.border,
+    borderRadius: 20,
     borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    flexDirection: "row",
+    gap: 14,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
   },
-  chipActive: { backgroundColor: colors.primary },
-  chipText: { color: colors.primary, fontSize: 14, fontWeight: "800" },
-  chipHint: { color: colors.body, fontSize: 12, marginTop: 2 },
-  chipTextActive: { color: colors.white },
+  optionActive: {
+    backgroundColor: colors.primaryTint,
+    borderColor: colors.primary,
+    borderWidth: 2,
+    paddingHorizontal: 17,
+    paddingVertical: 15,
+  },
+  optionCopy: { flex: 1, gap: 2 },
+  optionTitle: { ...type.item, color: colors.dark },
+  optionHint: { ...type.small, color: colors.muted },
   textArea: {
     backgroundColor: colors.soft,
-    borderColor: "transparent",
+    borderColor: colors.soft,
     borderRadius: radius.input,
-    borderWidth: 1,
+    borderWidth: 2,
     color: colors.dark,
-    fontSize: 15,
-    marginTop: 10,
-    minHeight: 96,
+    fontFamily: fonts.regular,
+    fontSize: 16,
+    minHeight: 120,
     padding: 14,
     textAlignVertical: "top",
   },
@@ -1518,60 +1593,79 @@ const styles = StyleSheet.create({
     backgroundColor: colors.soft,
     borderRadius: radius.pill,
     flexDirection: "row",
-    justifyContent: "space-between",
-    padding: 6,
+    gap: 12,
+    padding: 4,
   },
   stepButton: {
     alignItems: "center",
     backgroundColor: colors.white,
     borderRadius: radius.pill,
-    height: 38,
+    height: 44,
     justifyContent: "center",
-    width: 38,
+    width: 44,
   },
-  stepLabel: { color: colors.dark, fontSize: 14, fontWeight: "800" },
-  footer: {
-    borderTopColor: colors.border,
-    borderTopWidth: 1,
-    gap: 8,
-    marginTop: 8,
-    paddingTop: 14,
+  stepLabel: {
+    ...type.bodyStrong,
+    color: colors.dark,
+    flex: 1,
+    textAlign: "center",
   },
-  shareButton: {
+  footer: { gap: 10, marginTop: 8 },
+  savedTrip: {
     alignItems: "center",
-    alignSelf: "flex-start",
-    flexDirection: "row",
-    gap: 6,
-    paddingVertical: 6,
-  },
-  day: {
     borderTopColor: colors.border,
     borderTopWidth: 1,
-    gap: 8,
-    marginTop: 10,
-    paddingTop: 16,
-  },
-  dayLabel: {
-    color: colors.primary,
-    fontSize: 12,
-    fontWeight: "900",
-    letterSpacing: 1,
-    textTransform: "uppercase",
-  },
-  dayTitle: { color: colors.dark, fontSize: 20, fontWeight: "900" },
-  stop: {
-    borderColor: colors.border,
-    borderRadius: 20,
-    borderWidth: 1,
     flexDirection: "row",
     gap: 12,
-    padding: 8,
+    paddingVertical: 14,
   },
-  stopImage: { borderRadius: 14, height: 86, width: 86 },
-  stopFallback: { backgroundColor: colors.primary },
-  stopCopy: { flex: 1, gap: 3, justifyContent: "center" },
-  stopTitle: { color: colors.dark, fontSize: 16, fontWeight: "800" },
-  stopMeta: { color: colors.body, fontSize: 12 },
-  why: { color: colors.body, fontSize: 12, lineHeight: 17 },
-  whyLabel: { color: colors.teal, fontWeight: "800" },
+  savedCopy: { flex: 1, gap: 3 },
+  savedTitle: { ...type.item, color: colors.dark },
+  savedMeta: { ...type.small, color: colors.muted },
+  confirmRow: { alignItems: "center", flexDirection: "row", gap: 14 },
+  planHead: { gap: 8 },
+  dates: { ...type.smallStrong, color: colors.primary },
+  day: { gap: 14, marginTop: 16 },
+  dayLabel: { ...type.section, color: colors.dark },
+  dayTitle: { ...type.bodyStrong, color: colors.body, marginTop: -6 },
+  stop: { flexDirection: "row", gap: 14 },
+  rail: { alignItems: "center", gap: 4, width: 28 },
+  stopNumber: {
+    alignItems: "center",
+    backgroundColor: colors.primary,
+    borderRadius: radius.pill,
+    height: 28,
+    justifyContent: "center",
+    width: 28,
+  },
+  stopNumberText: { ...type.smallStrong, color: colors.white },
+  railLine: { backgroundColor: colors.border, flex: 1, width: 2 },
+  stopCopy: { flex: 1, gap: 8, paddingBottom: 12 },
+  stopImage: {
+    backgroundColor: colors.soft,
+    borderRadius: 18,
+    height: 150,
+    width: "100%",
+  },
+  stopFallback: { backgroundColor: colors.primaryTint },
+  stopTitle: { ...type.item, color: colors.dark },
+  stopMeta: { ...type.small, color: colors.muted },
+  why: { ...type.small, color: colors.body },
+  whyLabel: { ...type.smallStrong, color: colors.teal },
+  recRow: {
+    alignItems: "center",
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
+    flexDirection: "row",
+    gap: 14,
+    paddingVertical: 12,
+  },
+  recImage: { borderRadius: radius.thumb, height: 76, width: 76 },
+  recCopy: { flex: 1, gap: 3 },
+  freeDay: {
+    backgroundColor: colors.cream,
+    borderRadius: 20,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+  },
 });

@@ -1,26 +1,31 @@
 import type { ReactNode } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import { colors } from "../styles/tokens";
+import { StyleSheet, Text, View } from "react-native";
+import { colors, gutter } from "../styles/tokens";
+import { type } from "../styles/typography";
+import { Button } from "./ui/Button";
 
+/** A section heading with an optional action on the trailing side. */
 export function SectionHeading({
-  eyebrow,
   title,
   action,
+  inset = false,
 }: {
-  eyebrow: string;
   title: string;
   action?: ReactNode;
+  /** Add the page gutter, for headings above a full-bleed rail. */
+  inset?: boolean;
 }) {
   return (
-    <View style={styles.root}>
-      <View style={styles.copy}>
-        <Text style={styles.eyebrow}>{eyebrow}</Text>
-        <Text style={styles.title}>{title}</Text>
-      </View>
+    <View style={[styles.root, inset && styles.inset]}>
+      <Text accessibilityRole="header" style={styles.title}>
+        {title}
+      </Text>
       {action}
     </View>
   );
 }
+
+/** The Quiet button used as a section's "See all". */
 export function TextAction({
   label,
   onPress,
@@ -28,39 +33,17 @@ export function TextAction({
   label: string;
   onPress: () => void;
 }) {
-  return (
-    <Pressable accessibilityRole="button" onPress={onPress} hitSlop={8}>
-      <Text style={styles.action}>{label} →</Text>
-    </Pressable>
-  );
+  return <Button kind="quiet" label={label} onPress={onPress} />;
 }
+
 const styles = StyleSheet.create({
   root: {
+    alignItems: "center",
     flexDirection: "row",
-    alignItems: "flex-end",
-    justifyContent: "space-between",
     gap: 12,
-    marginBottom: 16,
+    justifyContent: "space-between",
+    minHeight: 44,
   },
-  copy: { flex: 1 },
-  eyebrow: {
-    color: colors.dark,
-    fontSize: 11,
-    fontWeight: "700",
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
-  },
-  title: {
-    color: colors.dark,
-    fontSize: 28,
-    fontWeight: "800",
-    letterSpacing: -0.7,
-    marginTop: 5,
-  },
-  action: {
-    color: colors.primary,
-    fontSize: 14,
-    fontWeight: "700",
-    paddingBottom: 2,
-  },
+  inset: { paddingHorizontal: gutter },
+  title: { ...type.section, color: colors.dark, flexShrink: 1 },
 });

@@ -14,6 +14,8 @@ import { ContentCard } from "../ContentCard";
 import { t, type AppLocale } from "../../i18n/locale";
 import { colors, radius } from "../../styles/tokens";
 import { useContentSearch } from "../../hooks/useContentSearch";
+import { Ionicons } from "@expo/vector-icons";
+import { fonts, type } from "../../styles/typography";
 export function SearchSheet({
   visible,
   locale,
@@ -49,11 +51,11 @@ export function SearchSheet({
               accessibilityLabel={t(locale, "closeSearch")}
               style={styles.close}
             >
-              <Text style={styles.closeText}>×</Text>
+              <Ionicons color={colors.primary} name="close" size={22} />
             </Pressable>
           </View>
           <View style={styles.inputWrap}>
-            <Text style={styles.glyph}>⌕</Text>
+            <Ionicons color={colors.muted} name="search-outline" size={20} />
             <TextInput
               autoFocus
               onChangeText={setQuery}
@@ -84,10 +86,12 @@ export function SearchSheet({
                 <Text style={styles.hint}>{t(locale, "searchHint")}</Text>
               )}
               {query.trim().length >= 2
-                ? matches.map((item) => (
+                ? matches.map((item, index) => (
                     <ContentCard
+                      divider={index > 0}
                       key={`${item.type}-${item.id}`}
                       item={item}
+                      locale={locale}
                       variant="list"
                       onPress={() => {
                         onOpen(item);
@@ -115,8 +119,8 @@ const styles = StyleSheet.create({
   backdrop: { flex: 1 },
   sheet: {
     backgroundColor: colors.white,
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
+    borderTopLeftRadius: radius.panel,
+    borderTopRightRadius: radius.panel,
     height: "78%",
     paddingTop: 18,
   },
@@ -126,12 +130,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 20,
   },
-  title: {
-    color: colors.dark,
-    fontSize: 28,
-    fontWeight: "900",
-    letterSpacing: -0.8,
-  },
+  title: { ...type.title, color: colors.dark },
   close: {
     alignItems: "center",
     backgroundColor: colors.soft,
@@ -140,20 +139,37 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     width: 42,
   },
-  closeText: { color: colors.primary, fontSize: 30, lineHeight: 33 },
   inputWrap: {
     alignItems: "center",
     backgroundColor: colors.soft,
-    borderRadius: radius.input,
+    borderRadius: radius.pill,
     flexDirection: "row",
+    gap: 10,
+    height: 52,
     marginHorizontal: 20,
     marginTop: 18,
-    paddingHorizontal: 15,
+    paddingHorizontal: 16,
   },
-  glyph: { color: colors.primary, fontSize: 22, fontWeight: "700" },
-  input: { color: colors.dark, flex: 1, fontSize: 15, paddingVertical: 15 },
+  input: {
+    fontFamily: fonts.regular,
+    color: colors.dark,
+    flex: 1,
+    fontSize: 15,
+    paddingVertical: 15,
+  },
   loading: { alignItems: "center", flex: 1, gap: 12, justifyContent: "center" },
-  hint: { color: colors.body, fontSize: 13, marginBottom: 12 },
-  error: { color: colors.danger, fontSize: 13, lineHeight: 19, marginTop: 8 },
+  hint: {
+    fontFamily: fonts.regular,
+    color: colors.body,
+    fontSize: 13,
+    marginBottom: 12,
+  },
+  error: {
+    fontFamily: fonts.regular,
+    color: colors.danger,
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 8,
+  },
   results: { padding: 20, paddingTop: 14 },
 });

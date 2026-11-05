@@ -1,184 +1,121 @@
+import type { ReactNode } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
-import type { ContentItem } from "../api/content";
+import type { ContentItem, ContentType } from "../api/content";
+import type { AppLocale } from "../i18n/locale";
+import { shortDate } from "../lib/dates";
 import { colors, radius } from "../styles/tokens";
+import { type } from "../styles/typography";
 
+export const CONTENT_TYPE_LABEL: Record<ContentType, string> = {
+  destination: "Destination",
+  place: "Place",
+  event: "Event",
+  package: "Package",
+  story: "Story",
+};
+
+const TO: Record<AppLocale, string> = { en: "to", ar: "إلى", ckb: "تا" };
+
+/** The meta line under a title: an event's dates, otherwise its category. */
+export function metaLine(item: ContentItem, locale: AppLocale): string {
+  if (item.type === "event" && item.date) {
+    const from = shortDate(item.date, locale);
+    const to = item.endDate ? shortDate(item.endDate, locale) : "";
+    return to && to !== from ? `${from} ${TO[locale]} ${to}` : from;
+  }
+  if (item.type === "destination") return "";
+  return item.label ?? "";
+}
+
+/**
+ * A content item in one of the redesign's two shapes:
+ * "list" is the Discover and Saved row (76pt photo, type, title, meta);
+ * "rail" is the photo-over-title card used in horizontal rails.
+ */
 export function ContentCard({
   item,
   variant = "rail",
+  locale = "en",
+  divider = false,
+  trailing,
   onPress,
 }: {
   item: ContentItem;
   variant?: "rail" | "list";
+  locale?: AppLocale;
+  /** Draw the hairline above this row (every row but the first). */
+  divider?: boolean;
+  /** An action at the row's end, e.g. Saved's heart. */
+  trailing?: ReactNode;
   onPress: () => void;
 }) {
-  const compact = variant === "list";
-  const cardVariants = {
-    destination: styles.destinationCard,
-    place: styles.placeCard,
-    event: styles.eventCard,
-    package: styles.packageCard,
-    story: styles.storyCard,
-  };
-  const imageVariants = {
-    destination: styles.destinationImage,
-    place: styles.placeImage,
-    event: styles.eventImage,
-    package: styles.packageImage,
-    story: styles.storyImage,
-  };
-  const showsExcerpt =
-    !compact && (item.type === "destination" || item.type === "story");
-  const dateLabel = item.date
-    ? new Date(item.date).toLocaleDateString(undefined, {
-        month: "short",
-        day: "numeric",
-      })
-    : item.type === "package"
-      ? "TBA"
-      : null;
+  if (variant === "list") {
+    const meta = metaLine(item, locale);
+    return (
+      <Pressable
+        accessibilityRole="button"
+        onPress={onPress}
+        style={({ pressed }) => [
+          styles.row,
+          divider && styles.divider,
+          pressed && styles.rowPressed,
+        ]}
+      >
+        <Thumb uri={item.image} style={styles.rowImage} />
+        <View style={styles.rowCopy}>
+          <Text style={styles.typeLabel}>{CONTENT_TYPE_LABEL[item.type]}</Text>
+          <Text numberOfLines={2} style={styles.title}>
+            {item.title}
+          </Text>
+          {meta ? (
+            <Text numberOfLines={1} style={styles.meta}>
+              {meta}
+            </Text>
+          ) : null}
+        </View>
+        {trailing}
+      </Pressable>
+    );
+  }
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`Open ${item.title}`}
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.card,
-        compact && styles.listCard,
-        !compact && cardVariants[item.type],
-        pressed && styles.pressed,
-      ]}
+      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
     >
-      <View
-        style={[
-          styles.imageWrap,
-          compact && styles.listImageWrap,
-          !compact && imageVariants[item.type],
-        ]}
-      >
-        {item.image ? (
-          <Image
-            source={{ uri: item.image }}
-            style={styles.image}
-            resizeMode="cover"
-          />
-        ) : (
-          <View style={styles.imageFallback}>
-            <Text style={styles.imageFallbackText}>VK</Text>
-          </View>
-        )}
-        <View style={styles.cardArrow}>
-          <Text style={styles.cardArrowText}>↗</Text>
-        </View>
-        {dateLabel && (item.type === "event" || item.type === "package") ? (
-          <View style={styles.dateBadge}>
-            <Text style={styles.dateBadgeText}>{dateLabel}</Text>
-          </View>
-        ) : null}
-      </View>
-      <View style={styles.cardCopy}>
-        {item.label ? (
-          <Text numberOfLines={1} style={styles.cardLabel}>
-            {item.label}
-          </Text>
-        ) : null}
-        <Text numberOfLines={compact ? 2 : 3} style={styles.cardTitle}>
-          {item.title}
-        </Text>
-        {(compact || showsExcerpt) && item.excerpt ? (
-          <Text numberOfLines={compact ? 2 : 3} style={styles.cardExcerpt}>
-            {item.excerpt}
-          </Text>
-        ) : null}
-      </View>
+      <Thumb uri={item.image} style={styles.cardImage} />
+      <Text numberOfLines={2} style={styles.title}>
+        {item.title}
+      </Text>
     </Pressable>
   );
 }
 
+function Thumb({ uri, style }: { uri: string | null; style: object }) {
+  return uri ? (
+    <Image source={{ uri }} style={[styles.imageBase, style]} />
+  ) : (
+    <View style={[styles.imageBase, styles.imageFallback, style]} />
+  );
+}
+
 const styles = StyleSheet.create({
-  card: {
-    width: 226,
-    overflow: "hidden",
-    borderRadius: radius.card,
-    backgroundColor: colors.white,
-    marginRight: 14,
-  },
-  destinationCard: { width: 286 },
-  placeCard: { width: 206 },
-  eventCard: { backgroundColor: colors.cream, width: 234 },
-  packageCard: { backgroundColor: colors.soft, width: 244 },
-  storyCard: { width: 250 },
-  listCard: {
-    width: "100%",
+  row: {
+    alignItems: "center",
     flexDirection: "row",
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: 12,
-    marginRight: 0,
-    padding: 8,
-    borderRadius: 22,
+    gap: 14,
+    paddingVertical: 12,
   },
-  pressed: { opacity: 0.8, transform: [{ scale: 0.985 }] },
-  imageWrap: {
-    height: 248,
-    backgroundColor: colors.primary,
-    overflow: "hidden",
-    position: "relative",
-  },
-  destinationImage: { height: 268 },
-  placeImage: { height: 216 },
-  eventImage: { height: 176 },
-  packageImage: { height: 192 },
-  storyImage: { height: 230 },
-  listImageWrap: { height: 112, width: 112, flexShrink: 0, borderRadius: 16 },
-  image: { height: "100%", width: "100%" },
-  imageFallback: {
-    alignItems: "center",
-    backgroundColor: colors.primary,
-    flex: 1,
-    justifyContent: "center",
-  },
-  imageFallbackText: { color: colors.lime, fontSize: 26, fontWeight: "900" },
-  cardArrow: {
-    alignItems: "center",
-    backgroundColor: colors.lime,
-    borderRadius: radius.pill,
-    height: 42,
-    justifyContent: "center",
-    position: "absolute",
-    right: 12,
-    top: 12,
-    width: 42,
-  },
-  cardArrowText: { color: colors.dark, fontSize: 21, fontWeight: "600" },
-  dateBadge: {
-    backgroundColor: colors.white,
-    borderRadius: 14,
-    left: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    position: "absolute",
-    top: 12,
-  },
-  dateBadgeText: { color: colors.primary, fontSize: 12, fontWeight: "900" },
-  cardCopy: { flex: 1, padding: 14 },
-  cardLabel: {
-    color: colors.body,
-    fontSize: 12,
-    fontWeight: "600",
-    marginBottom: 5,
-    textTransform: "capitalize",
-  },
-  cardTitle: {
-    color: colors.dark,
-    fontSize: 18,
-    fontWeight: "800",
-    letterSpacing: -0.3,
-    lineHeight: 22,
-  },
-  cardExcerpt: {
-    color: colors.body,
-    fontSize: 13,
-    lineHeight: 19,
-    marginTop: 7,
-  },
+  divider: { borderTopColor: colors.border, borderTopWidth: 1 },
+  rowPressed: { backgroundColor: colors.soft },
+  rowImage: { borderRadius: radius.thumb, height: 76, width: 76 },
+  rowCopy: { flex: 1, gap: 3 },
+  typeLabel: { ...type.caption, color: colors.primary },
+  title: { ...type.item, color: colors.dark },
+  meta: { ...type.small, color: colors.muted },
+  card: { gap: 10, width: 236 },
+  pressed: { opacity: 0.85 },
+  cardImage: { borderRadius: radius.media, height: 168, width: 236 },
+  imageBase: { backgroundColor: colors.soft },
+  imageFallback: { backgroundColor: colors.primaryTint },
 });

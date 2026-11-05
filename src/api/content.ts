@@ -21,6 +21,8 @@ export interface ContentItem {
   slug: string;
   label?: string;
   date?: string;
+  /** When a multi-day event ends; packages and places leave it out. */
+  endDate?: string;
   /** Original CMS image URL when the on-device copy is used offline. */
   remoteImage?: string | null;
   latitude?: number;
@@ -133,15 +135,14 @@ const mapItem = (record: RecordValue, type: ContentType): ContentItem => ({
   image: image(record),
   slug: String(record.slug ?? record.id ?? ""),
   label: text(record.category ?? record.type),
-  date:
-    typeof record.startDate === "string"
-      ? record.startDate
-      : typeof record.startAt === "string"
-        ? record.startAt
-        : undefined,
+  date: firstString(record.startDateTime, record.startDate, record.startAt),
+  endDate: firstString(record.endDateTime, record.endDate, record.endAt),
   latitude: number(record.latitude ?? record.lat),
   longitude: number(record.longitude ?? record.lng),
 });
+
+const firstString = (...values: unknown[]): string | undefined =>
+  values.find((value): value is string => typeof value === "string" && !!value);
 
 const number = (value: unknown): number | undefined => {
   if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -251,8 +252,18 @@ async function request(path: string): Promise<unknown> {
   }
 }
 
+/** A Home hero slide from the dashboard's hero banners. */
+export interface HeroBanner {
+  id: string;
+  title: string;
+  image: string | null;
+  ctaLabel: string;
+  /** The website page the banner points at, e.g. /packages. */
+  url: string;
+}
+
 export async function getExploreData(locale: AppLocale = "en"): Promise<{
-  hero: ContentItem | null;
+  heroes: HeroBanner[];
   destinations: ContentItem[];
   packages: ContentItem[];
   events: ContentItem[];
@@ -262,14 +273,17 @@ export async function getExploreData(locale: AppLocale = "en"): Promise<{
   const home = await request(`/home?lang=${locale}`);
   const raw = unwrap(home);
   const source = isRecord(raw) ? raw : {};
-  const hero =
-    asList(source.heroBanners ?? source.banners).map((item) => ({
-      ...mapItem(item, "destination"),
-      title: text(item.name ?? item.title) || "Kurdistan is calling",
-      excerpt: text(item.title ?? item.subtitle),
-    }))[0] ?? null;
+  const heroes = asList(source.heroBanners ?? source.banners)
+    .map((item) => ({
+      id: String(item.id ?? item.name),
+      title: text(item.name ?? item.title),
+      image: image(item),
+      ctaLabel: text(item.ctaLabel),
+      url: typeof item.url === "string" ? item.url : "",
+    }))
+    .filter((banner) => banner.title);
   return {
-    hero,
+    heroes,
     destinations: asList(
       source.featuredDestinations ?? source.destinations,
     ).map((item) => mapItem(item, "destination")),

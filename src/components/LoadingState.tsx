@@ -1,5 +1,6 @@
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { colors } from "../styles/tokens";
+import { fonts } from "../styles/typography";
 
 export function LoadingState({ label }: { label: string }) {
   return (
@@ -17,5 +18,5 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     padding: 32,
   },
-  label: { color: colors.body, fontSize: 14 },
+  label: { fontFamily: fonts.regular, color: colors.body, fontSize: 14 },
 });
