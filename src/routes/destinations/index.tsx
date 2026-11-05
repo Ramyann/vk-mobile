@@ -5,7 +5,8 @@ import { EmptyState } from "../../components/EmptyState";
 import { ErrorState } from "../../components/ErrorState";
 import { LoadingState } from "../../components/LoadingState";
 import { Button } from "../../components/ui/Button";
-import { ScreenHeader } from "../../components/ui/ScreenHeader";
+import { RoundAction, ScreenHeader } from "../../components/ui/ScreenHeader";
+import { Ionicons } from "@expo/vector-icons";
 import { useContentList } from "../../hooks/useContentList";
 import { isRtl, t, type AppLocale } from "../../i18n/locale";
 import { colors, gutter } from "../../styles/tokens";
@@ -29,18 +30,34 @@ export function BrowseScreen({
   locale,
   onBack,
   onOpen,
+  onOpenMap,
 }: {
   type: ContentType;
   locale: AppLocale;
   onBack: () => void;
   onOpen: (item: ContentItem) => void;
+  onOpenMap: () => void;
 }) {
   const { items, loading, error, refresh, hasNextPage, loadingMore, loadMore } =
     useContentList(contentType, locale);
   const page = copy[contentType];
   return (
     <View style={styles.page}>
-      <ScreenHeader onBack={onBack} rtl={isRtl(locale)} />
+      <ScreenHeader
+        onBack={onBack}
+        rtl={isRtl(locale)}
+        actions={
+          // Places and destinations are on the map; the other lists are not.
+          contentType === "place" || contentType === "destination" ? (
+            <RoundAction
+              label={ta(locale, "exploreTheMap")}
+              onPress={onOpenMap}
+            >
+              <Ionicons color={colors.primary} name="map-outline" size={22} />
+            </RoundAction>
+          ) : undefined
+        }
+      />
       {loading ? (
         <LoadingState label={ta(locale, "loading")} />
       ) : error ? (

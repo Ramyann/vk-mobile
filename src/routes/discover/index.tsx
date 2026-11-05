@@ -18,6 +18,7 @@ import { ContentCard } from "../../components/ContentCard";
 import { EmptyState } from "../../components/EmptyState";
 import { LoadingState } from "../../components/LoadingState";
 import { Chip } from "../../components/ui/Chip";
+import { RoundAction } from "../../components/ui/ScreenHeader";
 import { isRtl, navLabels, t, type AppLocale } from "../../i18n/locale";
 import { foldForSearch } from "../../lib/localized";
 import { colors, gutter, radius, topSpace } from "../../styles/tokens";
@@ -37,9 +38,11 @@ const FILTERS: Array<{ value: "all" | ContentType; label: AppMessageKey }> = [
 
 export function DiscoverScreen({
   onOpen,
+  onOpenMap,
   locale,
 }: {
   onOpen: (item: ContentItem) => void;
+  onOpenMap: () => void;
   locale: AppLocale;
 }) {
   const [items, setItems] = useState<ContentItem[]>([]);
@@ -69,9 +72,14 @@ export function DiscoverScreen({
   return (
     <View style={styles.page}>
       <View style={styles.header}>
-        <Text accessibilityRole="header" style={styles.title}>
-          {navLabels[locale].discover}
-        </Text>
+        <View style={styles.titleRow}>
+          <Text accessibilityRole="header" style={styles.title}>
+            {navLabels[locale].discover}
+          </Text>
+          <RoundAction label={ta(locale, "exploreTheMap")} onPress={onOpenMap}>
+            <Ionicons color={colors.primary} name="map-outline" size={22} />
+          </RoundAction>
+        </View>
         <View style={[styles.search, focused && styles.searchFocused]}>
           <Ionicons color={colors.muted} name="search-outline" size={20} />
           <TextInput
@@ -160,6 +168,11 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     paddingHorizontal: gutter,
     paddingTop: topSpace + 8,
+  },
+  titleRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
   title: { ...type.title, color: colors.dark },
   search: {

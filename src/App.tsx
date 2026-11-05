@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ComponentProps } from "react";
-import { BackHandler, Keyboard, Platform, StyleSheet, View } from "react-native";
+import {
+  BackHandler,
+  Keyboard,
+  Platform,
+  StyleSheet,
+  View,
+} from "react-native";
 import {
   SafeAreaProvider,
   useSafeAreaInsets,
@@ -483,6 +489,7 @@ function AppShell() {
         locale={locale}
         onBack={() => setBrowseType(null)}
         onOpen={open}
+        onOpenMap={() => setPanel("map")}
       />
     ) : tab === "explore" ? (
       <ExploreScreen
@@ -495,7 +502,11 @@ function AppShell() {
         onSearch={() => setPanel("search")}
       />
     ) : tab === "discover" ? (
-      <DiscoverScreen locale={locale} onOpen={open} />
+      <DiscoverScreen
+        locale={locale}
+        onOpen={open}
+        onOpenMap={() => setPanel("map")}
+      />
     ) : tab === "saved" ? (
       <SavedScreen
         saved={saved}
