@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { Text } from "./Text";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../styles/tokens";
-import { type } from "../../styles/typography";
+import { fonts, type } from "../../styles/typography";
 
 type IconName = ComponentProps<typeof Ionicons>["name"];
 
@@ -56,7 +56,7 @@ export function MenuRow({
       ]}
     >
       <View style={styles.tile}>
-        <Ionicons color={colors.primary} name={icon} size={20} />
+        <Ionicons color={colors.primary} name={icon} size={19} />
       </View>
       <View style={styles.copy}>
         <Text style={styles.title}>{title}</Text>
@@ -66,7 +66,7 @@ export function MenuRow({
         <Ionicons
           color={colors.muted}
           name={rtl ? "chevron-back" : "chevron-forward"}
-          size={22}
+          size={20}
         />
       )}
     </Pressable>
@@ -80,8 +80,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flexDirection: "row",
     gap: 14,
-    minHeight: 64,
-    paddingVertical: 12,
+    minHeight: 60,
+    paddingVertical: 10,
   },
   divider: { borderTopColor: colors.border, borderTopWidth: 1 },
   pressed: { backgroundColor: colors.soft },
@@ -89,11 +89,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: colors.primaryTint,
     borderRadius: 12,
-    height: 40,
+    height: 38,
     justifyContent: "center",
-    width: 40,
+    width: 38,
   },
-  copy: { flex: 1, gap: 3 },
-  title: { ...type.item, color: colors.dark },
-  detail: { ...type.small, color: colors.muted },
+  copy: { flex: 1, gap: 2 },
+  // A list row, not a card heading: 16pt keeps long labels on one line.
+  title: {
+    color: colors.dark,
+    fontFamily: fonts.semibold,
+    fontSize: 16,
+    lineHeight: 22,
+  },
+  detail: { ...type.small, color: colors.muted, fontSize: 13, lineHeight: 18 },
 });

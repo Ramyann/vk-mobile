@@ -45,21 +45,26 @@ export function RoundAction({
   label,
   onPress,
   tone = "soft",
+  active = false,
 }: {
   children: ReactNode;
   label: string;
   onPress: () => void;
   tone?: "soft" | "glass";
+  /** A toggle that is on, such as a saved place: filled purple. */
+  active?: boolean;
 }) {
   return (
     <Pressable
       accessibilityLabel={label}
       accessibilityRole="button"
+      accessibilityState={active ? { selected: true } : undefined}
       hitSlop={6}
       onPress={onPress}
       style={({ pressed }) => [
         styles.round,
         tone === "glass" ? styles.glass : styles.soft,
+        active && styles.active,
         pressed && styles.pressed,
       ]}
     >
@@ -111,5 +116,6 @@ const styles = StyleSheet.create({
   },
   soft: { backgroundColor: colors.soft },
   glass: { backgroundColor: "rgba(255,255,255,0.9)" },
+  active: { backgroundColor: colors.primary },
   pressed: { opacity: 0.7 },
 });

@@ -28,6 +28,7 @@ import { MenuRow } from "../ui/MenuRow";
 import { ScreenHeader } from "../ui/ScreenHeader";
 import { TextField } from "../ui/TextField";
 import { ta } from "../../i18n/app-messages";
+import { useTabBarSpace } from "../../components/ui/TabBar";
 
 const messageOf = (error: unknown, fallback: string) =>
   error instanceof Error && error.message ? error.message : fallback;
@@ -38,16 +39,20 @@ function AuthPage({
   header,
   title,
   intro,
+  compact = false,
   children,
 }: {
   onBack: () => void;
   locale: AppLocale;
+  /** Log in, sign up and reset: a smaller title so the form fits one screen. */
+  compact?: boolean;
   /** Shown beside the back button, as on Account. */
   header?: string;
   title?: string;
   intro?: string;
   children: ReactNode;
 }) {
+  const tabBarSpace = useTabBarSpace();
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -55,15 +60,26 @@ function AuthPage({
     >
       <ScreenHeader onBack={onBack} rtl={isRtl(locale)} title={header} />
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          compact && styles.compactContent,
+          { paddingBottom: compact ? 24 : tabBarSpace },
+        ]}
         keyboardShouldPersistTaps="handled"
       >
         {title ? (
-          <Text accessibilityRole="header" style={styles.title}>
+          <Text
+            accessibilityRole="header"
+            style={[styles.title, compact && styles.compactTitle]}
+          >
             {title}
           </Text>
         ) : null}
-        {intro ? <Text style={styles.intro}>{intro}</Text> : null}
+        {intro ? (
+          <Text style={[styles.intro, compact && styles.compactIntro]}>
+            {intro}
+          </Text>
+        ) : null}
         {children}
       </ScrollView>
     </KeyboardAvoidingView>
@@ -79,9 +95,14 @@ function Field({
   onChangeText: (value: string) => void;
   secure?: boolean;
   locale: AppLocale;
+  compact?: boolean;
 } & Pick<
   React.ComponentProps<typeof TextInput>,
-  "autoComplete" | "keyboardType" | "autoCapitalize" | "textContentType"
+  | "autoComplete"
+  | "keyboardType"
+  | "autoCapitalize"
+  | "textContentType"
+  | "placeholder"
 >) {
   const t = webT(locale);
   return (
@@ -101,6 +122,9 @@ function PasswordRules({
   locale: AppLocale;
 }) {
   const t = webT(locale);
+  // Shown once typing starts, as small wrapping pills, so the form still
+  // fits on one screen.
+  if (!value) return null;
   return (
     <View style={styles.rules}>
       {PASSWORD_RULES.map((rule) => {
@@ -111,12 +135,12 @@ function PasswordRules({
               met ? "auth.ruleMet" : "auth.ruleUnmet",
             )}`}
             key={rule.id}
-            style={styles.rule}
+            style={[styles.rule, met && styles.ruleMetPill]}
           >
             <Ionicons
               color={met ? colors.teal : colors.muted}
-              name={met ? "checkmark" : "remove"}
-              size={16}
+              name={met ? "checkmark" : "ellipse-outline"}
+              size={12}
             />
             <Text style={[styles.ruleText, met && styles.ruleMet]}>
               {t(`auth.rules.${rule.id}`)}
@@ -207,15 +231,18 @@ export function LoginScreen({
 
   return (
     <AuthPage
+      compact
       onBack={onBack}
       locale={locale}
       title={t("auth.login.panelTitle")}
       intro={note ?? t("auth.login.panelBody")}
     >
       <Field
+        compact
         autoCapitalize="none"
         autoComplete="email"
         keyboardType="email-address"
+        placeholder={ta(locale, "placeholderEmail")}
         label={t("auth.emailLabel")}
         locale={locale}
         onChangeText={setEmail}
@@ -223,7 +250,9 @@ export function LoginScreen({
         value={email}
       />
       <Field
+        compact
         autoComplete="current-password"
+        placeholder={ta(locale, "placeholderPassword")}
         label={t("auth.passwordLabel")}
         locale={locale}
         onChangeText={setPassword}
@@ -303,6 +332,7 @@ export function SignupScreen({
   if (done)
     return (
       <AuthPage
+        compact
         onBack={onBack}
         locale={locale}
         title={t("auth.verify.panelTitle")}
@@ -326,6 +356,7 @@ export function SignupScreen({
 
   return (
     <AuthPage
+      compact
       onBack={onBack}
       locale={locale}
       title={t("auth.signup.title")}
@@ -334,7 +365,9 @@ export function SignupScreen({
       <View style={styles.nameRow}>
         <View style={styles.nameField}>
           <Field
+            compact
             autoComplete="given-name"
+            placeholder={ta(locale, "placeholderFirstName")}
             label={t("auth.firstNameLabel")}
             locale={locale}
             onChangeText={setFirstName}
@@ -344,7 +377,9 @@ export function SignupScreen({
         </View>
         <View style={styles.nameField}>
           <Field
+            compact
             autoComplete="family-name"
+            placeholder={ta(locale, "placeholderLastName")}
             label={t("auth.lastNameLabel")}
             locale={locale}
             onChangeText={setLastName}
@@ -354,9 +389,11 @@ export function SignupScreen({
         </View>
       </View>
       <Field
+        compact
         autoCapitalize="none"
         autoComplete="email"
         keyboardType="email-address"
+        placeholder={ta(locale, "placeholderEmail")}
         label={t("auth.emailLabel")}
         locale={locale}
         onChangeText={setEmail}
@@ -364,7 +401,9 @@ export function SignupScreen({
         value={email}
       />
       <Field
+        compact
         autoComplete="new-password"
+        placeholder={ta(locale, "placeholderNewPassword")}
         label={t("auth.passwordLabel")}
         locale={locale}
         onChangeText={setPassword}
@@ -374,7 +413,9 @@ export function SignupScreen({
       />
       <PasswordRules locale={locale} value={password} />
       <Field
+        compact
         autoComplete="new-password"
+        placeholder={ta(locale, "placeholderConfirmPassword")}
         label={t("auth.confirmPasswordLabel")}
         locale={locale}
         onChangeText={setConfirmation}
@@ -428,6 +469,7 @@ export function ForgotPasswordScreen({
   };
   return (
     <AuthPage
+      compact
       onBack={onBack}
       locale={locale}
       title={t("auth.forgot.title")}
@@ -436,9 +478,11 @@ export function ForgotPasswordScreen({
       {!sent ? (
         <>
           <Field
+            compact
             autoCapitalize="none"
             autoComplete="email"
             keyboardType="email-address"
+            placeholder={ta(locale, "placeholderEmail")}
             label={t("auth.emailLabel")}
             locale={locale}
             onChangeText={setEmail}
@@ -594,6 +638,7 @@ export function ChangePasswordScreen({
     >
       <Field
         autoComplete="current-password"
+        placeholder={ta(locale, "placeholderPassword")}
         label={t("auth.passwordLabel")}
         locale={locale}
         onChangeText={setCurrentPassword}
@@ -603,6 +648,7 @@ export function ChangePasswordScreen({
       />
       <Field
         autoComplete="new-password"
+        placeholder={ta(locale, "placeholderNewPassword")}
         label={t("auth.newPasswordLabel")}
         locale={locale}
         onChangeText={setPassword}
@@ -613,6 +659,7 @@ export function ChangePasswordScreen({
       <PasswordRules locale={locale} value={password} />
       <Field
         autoComplete="new-password"
+        placeholder={ta(locale, "placeholderConfirmPassword")}
         label={t("auth.confirmPasswordLabel")}
         locale={locale}
         onChangeText={setConfirmation}
@@ -645,12 +692,24 @@ const styles = StyleSheet.create({
   },
   title: { ...type.title, color: colors.dark },
   intro: { ...type.body, color: colors.body },
+  compactContent: { gap: 14, paddingTop: 4 },
+  compactTitle: { ...type.section },
+  compactIntro: { ...type.small, color: colors.body, marginTop: -6 },
   nameRow: { flexDirection: "row", gap: 12 },
   nameField: { flex: 1 },
-  rules: { gap: 6, marginTop: -8 },
-  rule: { alignItems: "center", flexDirection: "row", gap: 8 },
-  ruleText: { ...type.small, color: colors.muted },
-  ruleMet: { ...type.smallStrong, color: colors.teal },
+  rules: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: -6 },
+  rule: {
+    alignItems: "center",
+    backgroundColor: colors.soft,
+    borderRadius: radius.pill,
+    flexDirection: "row",
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  ruleMetPill: { backgroundColor: "rgba(0,94,83,0.1)" },
+  ruleText: { ...type.caption, color: colors.muted, lineHeight: 16 },
+  ruleMet: { color: colors.teal },
   switchRow: {
     alignItems: "center",
     flexDirection: "row",

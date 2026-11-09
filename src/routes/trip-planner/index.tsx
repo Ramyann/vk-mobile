@@ -12,6 +12,7 @@ import {
   View,
 } from "react-native";
 import { Text, TextInput } from "../../components/ui/Text";
+import { useTabBarSpace } from "../../components/ui/TabBar";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ContentItem, ContentType } from "../../api/content";
@@ -222,6 +223,7 @@ function Page({
   children: ReactNode;
   scrollRef?: React.RefObject<ScrollView | null>;
 }) {
+  const tabBarSpace = useTabBarSpace();
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -254,7 +256,7 @@ function Page({
         </View>
       ) : null}
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: tabBarSpace }]}
         keyboardShouldPersistTaps="handled"
         onContentSizeChange={() =>
           scrollRef?.current?.scrollToEnd({ animated: true })

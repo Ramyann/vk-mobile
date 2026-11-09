@@ -8,6 +8,7 @@ import {
   View,
 } from "react-native";
 import { Text } from "../../components/ui/Text";
+import { useTabBarSpace } from "../../components/ui/TabBar";
 import type { ComponentProps } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import {
@@ -43,6 +44,7 @@ export function NotificationSettingsScreen({
   onBack: () => void;
   onChange: (preferences: NotificationPreferences) => void;
 }) {
+  const tabBarSpace = useTabBarSpace();
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -121,7 +123,10 @@ export function NotificationSettingsScreen({
   };
 
   return (
-    <ScrollView style={styles.page} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.page}
+      contentContainerStyle={[styles.content, { paddingBottom: tabBarSpace }]}
+    >
       <View style={styles.back}>
         <BackButton onPress={onBack} rtl={isRtl(locale)} />
       </View>

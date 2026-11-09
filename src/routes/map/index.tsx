@@ -10,6 +10,7 @@ import {
   View,
 } from "react-native";
 import { Text, TextInput } from "../../components/ui/Text";
+import { useTabBarHeight } from "../../components/ui/TabBar";
 import * as Location from "expo-location";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
@@ -85,6 +86,8 @@ export function PlacesMapScreen({
   const t = webT(locale);
   const rtl = isRtl(locale);
   const insets = useSafeAreaInsets();
+  // The map runs under the floating tab bar; its panel sits just above it.
+  const tabBarHeight = useTabBarHeight();
   const pins = useQuery({ queryKey: ["map-pins"], queryFn: getMapPins });
   const places = useMemo(
     () => resolveMapPins(pins.data ?? [], locale),
@@ -389,7 +392,10 @@ export function PlacesMapScreen({
           // Expo Go and the web preview: the website's MapLibre basemap.
           <WebPlacesMap
             camera={camera}
-            insets={{ top: insets.top + topSpace + 110, bottom: 280 }}
+            insets={{
+              top: insets.top + topSpace + 110,
+              bottom: 280 + tabBarHeight,
+            }}
             onPick={setSelectedId}
             pins={mapPins}
             selectedId={selected?.id ?? null}
@@ -397,7 +403,10 @@ export function PlacesMapScreen({
         )}
       </View>
       <View style={{ paddingTop: insets.top + topSpace }}>{controls}</View>
-      <View pointerEvents="box-none" style={styles.bottom}>
+      <View
+        pointerEvents="box-none"
+        style={[styles.bottom, { bottom: tabBarHeight }]}
+      >
         <View pointerEvents="box-none" style={styles.locateWrap}>
           {notice ? (
             <Text style={[styles.toast, floating]}>{notice}</Text>

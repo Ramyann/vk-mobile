@@ -1,5 +1,6 @@
 import { FlatList, StyleSheet, View } from "react-native";
 import { Text } from "../../components/ui/Text";
+import { useTabBarSpace } from "../../components/ui/TabBar";
 import { type ContentItem, type ContentType } from "../../api/content";
 import { ContentCard } from "../../components/ContentCard";
 import { EmptyState } from "../../components/EmptyState";
@@ -39,6 +40,7 @@ export function BrowseScreen({
   onOpen: (item: ContentItem) => void;
   onOpenMap: () => void;
 }) {
+  const tabBarSpace = useTabBarSpace();
   const { items, loading, error, refresh, hasNextPage, loadingMore, loadMore } =
     useContentList(contentType, locale);
   const page = copy[contentType];
@@ -69,7 +71,10 @@ export function BrowseScreen({
         />
       ) : (
         <FlatList
-          contentContainerStyle={styles.results}
+          contentContainerStyle={[
+            styles.results,
+            { paddingBottom: tabBarSpace },
+          ]}
           data={items}
           keyExtractor={(item) => `${item.type}-${item.id}`}
           showsVerticalScrollIndicator={false}

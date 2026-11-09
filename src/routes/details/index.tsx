@@ -9,6 +9,7 @@ import {
   View,
 } from "react-native";
 import { Text } from "../../components/ui/Text";
+import { useTabBarSpace } from "../../components/ui/TabBar";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
@@ -48,6 +49,7 @@ export function DetailScreen({
   const t = webT(locale);
   const rtl = isRtl(locale);
   const insets = useSafeAreaInsets();
+  const tabBarSpace = useTabBarSpace();
   const { detail, loading } = useContentDetail(item, locale, saved);
   const display = detail ?? item;
   useEffect(() => {
@@ -125,7 +127,10 @@ export function DetailScreen({
   return (
     <View style={styles.page}>
       <StatusBar style="light" />
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: tabBarSpace }}
+        showsVerticalScrollIndicator={false}
+      >
         <ImageBackground
           source={display.image ? { uri: display.image } : undefined}
           style={[styles.photo, !display.image && styles.photoFallback]}
@@ -136,48 +141,66 @@ export function DetailScreen({
           />
           <View style={[styles.photoActions, { top: insets.top + topSpace }]}>
             <BackButton onPress={onBack} rtl={rtl} tone="glass" />
-            <RoundAction
-              label={ta(locale, saved ? "removeFromSaved" : "save")}
-              onPress={onToggleSaved}
-              tone="glass"
-            >
-              <Ionicons
-                color={colors.primary}
-                name={saved ? "heart" : "heart-outline"}
-                size={22}
-              />
-            </RoundAction>
           </View>
         </ImageBackground>
 
         <View style={styles.content}>
-          <View style={styles.titleBlock}>
-            <Text style={styles.category}>
-              {display.label || contentTypeLabel(display.type, locale)}
-            </Text>
-            <Text accessibilityRole="header" style={styles.title}>
-              {display.title}
-            </Text>
-            {statusLine ? (
-              <View style={styles.statusRow}>
-                <Ionicons
-                  color={statusLine.open ? colors.teal : colors.danger}
-                  name="time-outline"
-                  size={18}
-                />
-                <Text
-                  style={[
-                    styles.status,
-                    { color: statusLine.open ? colors.teal : colors.danger },
-                  ]}
+          <View style={styles.titleRow}>
+            <View style={styles.titleBlock}>
+              <Text style={styles.category}>
+                {display.label || contentTypeLabel(display.type, locale)}
+              </Text>
+              <Text accessibilityRole="header" style={styles.title}>
+                {display.title}
+              </Text>
+              {statusLine ? (
+                <View style={styles.statusRow}>
+                  <Ionicons
+                    color={statusLine.open ? colors.teal : colors.danger}
+                    name="time-outline"
+                    size={18}
+                  />
+                  <Text
+                    style={[
+                      styles.status,
+                      { color: statusLine.open ? colors.teal : colors.danger },
+                    ]}
+                  >
+                    {statusLine.label}
+                  </Text>
+                  {statusLine.detail ? (
+                    <Text style={styles.statusDetail}>{statusLine.detail}</Text>
+                  ) : null}
+                </View>
+              ) : null}
+            </View>
+            {/* Directions and saving sit beside the title, a little above
+                it, instead of in a bar at the bottom. */}
+            <View style={styles.titleActions}>
+              {directionsUrl ? (
+                <RoundAction
+                  label={ta(locale, "getDirections")}
+                  onPress={() => void Linking.openURL(directionsUrl)}
                 >
-                  {statusLine.label}
-                </Text>
-                {statusLine.detail ? (
-                  <Text style={styles.statusDetail}>{statusLine.detail}</Text>
-                ) : null}
-              </View>
-            ) : null}
+                  <Ionicons
+                    color={colors.primary}
+                    name="navigate-outline"
+                    size={21}
+                  />
+                </RoundAction>
+              ) : null}
+              <RoundAction
+                active={saved}
+                label={ta(locale, saved ? "savedToJourney" : "saveToJourney")}
+                onPress={onToggleSaved}
+              >
+                <Ionicons
+                  color={saved ? colors.lime : colors.primary}
+                  name={saved ? "bookmark" : "bookmark-outline"}
+                  size={21}
+                />
+              </RoundAction>
+            </View>
           </View>
 
           {facts.length ? (
@@ -258,22 +281,6 @@ export function DetailScreen({
           ) : null}
         </View>
       </ScrollView>
-
-      <View style={styles.actionBar}>
-        {directionsUrl ? (
-          <Button
-            kind="secondary"
-            label={t("exploreMap.directions")}
-            onPress={() => void Linking.openURL(directionsUrl)}
-          />
-        ) : null}
-        <Button
-          kind="primary"
-          label={ta(locale, saved ? "savedToJourney" : "saveToJourney")}
-          onPress={onToggleSaved}
-          style={styles.saveButton}
-        />
-      </View>
     </View>
   );
 }
@@ -296,7 +303,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: gutter,
     paddingTop: 24,
   },
-  titleBlock: { gap: 8 },
+  titleRow: { alignItems: "flex-start", flexDirection: "row", gap: 12 },
+  titleBlock: { flex: 1, gap: 8 },
+  titleActions: { flexDirection: "row", gap: 8, marginTop: -6 },
   category: { ...type.caption, color: colors.primary },
   title: { ...type.title, color: colors.dark },
   statusRow: { alignItems: "center", flexDirection: "row", gap: 6 },
@@ -324,14 +333,4 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   links: { alignItems: "flex-start" },
-  actionBar: {
-    backgroundColor: colors.white,
-    borderTopColor: colors.border,
-    borderTopWidth: 1,
-    flexDirection: "row",
-    gap: 12,
-    paddingHorizontal: gutter,
-    paddingVertical: 12,
-  },
-  saveButton: { flex: 1 },
 });

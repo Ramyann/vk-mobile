@@ -31,7 +31,7 @@ import {
   saveSavedContent,
 } from "./lib/saved-content";
 import { colors } from "./styles/tokens";
-import { TabBar, useTabBarHeight } from "./components/ui/TabBar";
+import { TabBar } from "./components/ui/TabBar";
 import {
   ChangePasswordScreen,
   ForgotPasswordScreen,
@@ -136,7 +136,6 @@ export function AppRoot() {
 
 function AppShell() {
   const insets = useSafeAreaInsets();
-  const tabBarHeight = useTabBarHeight();
   // The bar steps aside while the keyboard is up, so it never covers a field.
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   useEffect(() => {
@@ -539,8 +538,8 @@ function AppShell() {
       />
     );
 
-  // The four tab screens scroll under the floating bar; every other screen
-  // ends above it. Log in, sign up and the chat take the whole screen.
+  // Every screen scrolls under the floating bar, which leaves room for it at
+  // the end of its content. Log in, sign up and the chat take the whole screen.
   const onTab = !detail && !panel && !browseType;
   const fullScreen =
     panel === "chat" ||
@@ -560,7 +559,6 @@ function AppShell() {
             styles.root,
             !edgeToEdge && { paddingTop: insets.top },
             !showTabs && { paddingBottom: insets.bottom },
-            showTabs && !onTab && { paddingBottom: tabBarHeight },
           ]}
         >
           {edgeToEdge ? null : <StatusBar style="dark" />}

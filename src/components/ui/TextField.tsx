@@ -30,6 +30,7 @@ export function TextField({
   hideLabel = "Hide password",
   error,
   trailing,
+  compact = false,
   ...input
 }: {
   label: string;
@@ -41,15 +42,18 @@ export function TextField({
   /** Shown under the field, in red. */
   error?: string | null;
   trailing?: ReactNode;
+  /** A 48pt field with a tighter label, for forms that should fit one screen. */
+  compact?: boolean;
 } & InputProps) {
   const [focused, setFocused] = useState(false);
   const [hidden, setHidden] = useState(true);
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, compact && styles.compactRoot]}>
       <Text style={styles.label}>{label}</Text>
       <View
         style={[
           styles.field,
+          compact && styles.compactField,
           input.multiline && styles.multiline,
           focused && styles.focused,
           Boolean(error) && styles.invalid,
@@ -63,7 +67,11 @@ export function TextField({
           onFocus={() => setFocused(true)}
           placeholderTextColor={colors.muted}
           secureTextEntry={secure && hidden}
-          style={[styles.input, input.multiline && styles.multilineInput]}
+          style={[
+            styles.input,
+            compact && styles.compactInput,
+            input.multiline && styles.multilineInput,
+          ]}
           textAlignVertical={input.multiline ? "top" : "center"}
           value={value}
           {...input}
@@ -108,6 +116,9 @@ const styles = StyleSheet.create({
     minHeight: 52,
     paddingHorizontal: 14,
   },
+  compactRoot: { gap: 6 },
+  compactField: { minHeight: 48 },
+  compactInput: { minHeight: 44 },
   multiline: { alignItems: "flex-start", minHeight: 120, paddingVertical: 10 },
   focused: { borderColor: colors.primary },
   invalid: { borderColor: colors.danger },

@@ -4,10 +4,10 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  TextInput,
   View,
 } from "react-native";
-import { Text } from "../../components/ui/Text";
+import { Text, TextInput } from "../../components/ui/Text";
+import { useTabBarSpace } from "../../components/ui/TabBar";
 import { getFaqs, type FaqItem } from "../../api/content";
 import { FaqAccordion } from "../../components/FaqAccordion";
 import { submitContactInquiry, type ContactDraft } from "../../api/contact";
@@ -45,29 +45,80 @@ export function FaqScreen({
   onBack: () => void;
   locale: AppLocale;
 }) {
+  const tabBarSpace = useTabBarSpace();
   const [items, setItems] = useState<FaqItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState("");
+  const [focused, setFocused] = useState(false);
   useEffect(() => {
     setLoading(true);
     void getFaqs(locale)
       .then(setItems)
       .finally(() => setLoading(false));
   }, [locale]);
+  const needle = normalise(query);
+  const shown = needle
+    ? items.filter((item) =>
+        normalise(`${item.question} ${item.answer}`).includes(needle),
+      )
+    : items;
   return (
-    <ScrollView style={styles.page} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.page}
+      contentContainerStyle={[styles.content, { paddingBottom: tabBarSpace }]}
+      keyboardShouldPersistTaps="handled"
+    >
       <Back locale={locale} onPress={onBack} />
       <Text accessibilityRole="header" style={styles.title}>
         {ta(locale, "faq")}
       </Text>
       <Text style={styles.intro}>{ta(locale, "faqIntro")}</Text>
+      <View style={[styles.search, focused && styles.searchFocused]}>
+        <Ionicons color={colors.muted} name="search-outline" size={20} />
+        <TextInput
+          accessibilityLabel={ta(locale, "faqSearch")}
+          onBlur={() => setFocused(false)}
+          onChangeText={setQuery}
+          onFocus={() => setFocused(true)}
+          placeholder={ta(locale, "faqSearch")}
+          placeholderTextColor={colors.muted}
+          returnKeyType="search"
+          style={styles.searchInput}
+          value={query}
+        />
+        {query ? (
+          <Pressable
+            accessibilityLabel={ta(locale, "clearSearch")}
+            accessibilityRole="button"
+            hitSlop={12}
+            onPress={() => setQuery("")}
+          >
+            <Ionicons color={colors.muted} name="close-circle" size={20} />
+          </Pressable>
+        ) : null}
+      </View>
       {loading ? (
         <ActivityIndicator color={colors.primary} style={styles.spinner} />
+      ) : shown.length ? (
+        <FaqAccordion items={shown} />
       ) : (
-        <FaqAccordion items={items} />
+        <Text style={styles.noMatch}>
+          {ta(locale, "faqNoMatch", { query: query.trim() })}
+        </Text>
       )}
     </ScrollView>
   );
 }
+
+/** Case- and accent-insensitive text for matching, without HTML tags. */
+const normalise = (text: string) =>
+  text
+    .replace(/<[^>]*>/g, " ")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
 
 export function LanguageScreen({
   locale,
@@ -78,8 +129,12 @@ export function LanguageScreen({
   onBack: () => void;
   onSelect: (locale: AppLocale) => void;
 }) {
+  const tabBarSpace = useTabBarSpace();
   return (
-    <ScrollView style={styles.page} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.page}
+      contentContainerStyle={[styles.content, { paddingBottom: tabBarSpace }]}
+    >
       <Back locale={locale} onPress={onBack} />
       <Text accessibilityRole="header" style={styles.title}>
         {ta(locale, "language")}
@@ -143,6 +198,7 @@ export function ContactScreen({
   onBack: () => void;
   locale: AppLocale;
 }) {
+  const tabBarSpace = useTabBarSpace();
   const [draft, setDraft] = useState<ContactDraft>(emptyDraft);
   const [verify, setVerify] = useState(false);
   const [sending, setSending] = useState(false);
@@ -171,7 +227,7 @@ export function ContactScreen({
   return (
     <ScrollView
       style={styles.page}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, { paddingBottom: tabBarSpace }]}
       keyboardShouldPersistTaps="handled"
     >
       <Back locale={locale} onPress={onBack} />
@@ -182,28 +238,33 @@ export function ContactScreen({
       <View style={styles.nameRow}>
         <Field
           label={ta(locale, "firstName")}
+          placeholder={ta(locale, "placeholderFirstName")}
           value={draft.firstName}
           onChangeText={(value) => set("firstName", value)}
         />
         <Field
           label={ta(locale, "lastName")}
+          placeholder={ta(locale, "placeholderLastName")}
           value={draft.lastName}
           onChangeText={(value) => set("lastName", value)}
         />
       </View>
       <Field
         label={ta(locale, "email")}
+        placeholder={ta(locale, "placeholderEmail")}
         value={draft.email}
         keyboardType="email-address"
         onChangeText={(value) => set("email", value)}
       />
       <Field
         label={ta(locale, "subject")}
+        placeholder={ta(locale, "placeholderSubject")}
         value={draft.subject}
         onChangeText={(value) => set("subject", value)}
       />
       <Field
         label={ta(locale, "message")}
+        placeholder={ta(locale, "placeholderMessage")}
         multiline
         value={draft.message}
         onChangeText={(value) => set("message", value)}
@@ -234,6 +295,7 @@ function Field({
   label: string;
   value: string;
   onChangeText: (value: string) => void;
+  placeholder?: string;
   multiline?: boolean;
   keyboardType?: "default" | "email-address";
 }) {
@@ -263,6 +325,27 @@ const styles = StyleSheet.create({
   title: { ...type.title, color: colors.dark },
   intro: { ...type.body, color: colors.body, marginBottom: 8 },
   spinner: { marginTop: 28 },
+  search: {
+    alignItems: "center",
+    backgroundColor: colors.soft,
+    borderColor: colors.soft,
+    borderRadius: radius.pill,
+    borderWidth: 2,
+    flexDirection: "row",
+    gap: 10,
+    height: 52,
+    marginBottom: 4,
+    paddingHorizontal: 16,
+  },
+  searchFocused: { borderColor: colors.primary },
+  searchInput: {
+    color: colors.dark,
+    flex: 1,
+    fontFamily: fonts.regular,
+    fontSize: 16,
+    height: "100%",
+  },
+  noMatch: { ...type.body, color: colors.muted, marginTop: 12 },
   send: { marginTop: 8 },
   nameRow: { flexDirection: "row", gap: 10 },
   field: { flex: 1, gap: 7 },
