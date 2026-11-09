@@ -176,11 +176,14 @@ function pillPath(width: number): string {
 }
 
 const styles = StyleSheet.create({
+  // Above every screen, including a place opened over the map.
   dock: {
+    elevation: 20,
     height: BAR_HEIGHT + TOP_ROOM,
     left: 16,
     position: "absolute",
     right: 16,
+    zIndex: 20,
   },
   // The drawn bar; its shadow follows the notched outline on iOS.
   shape: {

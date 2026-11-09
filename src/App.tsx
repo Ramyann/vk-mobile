@@ -610,5 +610,7 @@ function AppShell() {
 const styles = StyleSheet.create({
   root: { backgroundColor: colors.white, flex: 1 },
   content: { flex: 1 },
-  overlay: { backgroundColor: colors.white },
+  // Above everything in the panel underneath, map controls included (their
+  // zIndex would otherwise leak through once React Native flattens views).
+  overlay: { backgroundColor: colors.white, elevation: 10, zIndex: 10 },
 });

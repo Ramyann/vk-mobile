@@ -6,10 +6,13 @@ import { type } from "../../styles/typography";
 /** The redesign's filter chip: 36pt, outlined, solid purple when selected. */
 export function Chip({
   label,
+  count,
   selected,
   onPress,
 }: {
   label: string;
+  /** A result count, set lighter after the label so it doesn't read as part of the name. */
+  count?: string;
   selected: boolean;
   onPress: () => void;
 }) {
@@ -33,6 +36,16 @@ export function Chip({
       >
         {label}
       </Text>
+      {count ? (
+        <Text
+          style={[
+            styles.count,
+            { color: selected ? "rgba(255,255,255,0.7)" : colors.muted },
+          ]}
+        >
+          {count}
+        </Text>
+      ) : null}
     </Pressable>
   );
 }
@@ -44,10 +57,13 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: radius.pill,
     borderWidth: 1,
+    flexDirection: "row",
+    gap: 6,
     height: 36,
     justifyContent: "center",
     paddingHorizontal: 14,
   },
   selected: { backgroundColor: colors.primary, borderColor: colors.primary },
   pressed: { backgroundColor: colors.primaryTint },
+  count: { ...type.caption, lineHeight: 16 },
 });

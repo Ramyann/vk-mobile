@@ -41,6 +41,7 @@ import { NativeMap, nativeMapsAvailable } from "./NativeMap";
 import { WebPlacesMap } from "./WebPlacesMap";
 import { ta } from "../../i18n/app-messages";
 import { Rail } from "../../components/ui/Rail";
+import { categoryIonicon } from "./categoryIcons";
 
 type Coordinates = { latitude: number; longitude: number };
 const REGION_CENTER: Coordinates = { latitude: 36.3, longitude: 44.4 };
@@ -252,6 +253,7 @@ export function PlacesMapScreen({
       <Rail
         contentContainerStyle={styles.chips}
         keyboardShouldPersistTaps="handled"
+        style={styles.chipRail}
       >
         <Chip
           label={t("exploreMap.all")}
@@ -263,7 +265,8 @@ export function PlacesMapScreen({
         {categories.map((option) => (
           <Chip
             key={option.value}
-            label={`${option.label} ${formatNumber(option.count, locale)}`}
+            count={formatNumber(option.count, locale)}
+            label={option.label}
             selected={filters.categories.includes(option.value)}
             onPress={() =>
               setFilters((current) => ({
@@ -322,7 +325,10 @@ export function PlacesMapScreen({
         <StatusBar style="dark" />
         {controls}
         <FlatList
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[
+            styles.list,
+            { paddingBottom: tabBarHeight + 96 },
+          ]}
           data={sorted}
           keyExtractor={(place) => place.id}
           keyboardShouldPersistTaps="handled"
@@ -334,21 +340,13 @@ export function PlacesMapScreen({
                   total: formatNumber(visible.length, locale),
                 })}
               </Text>
-              <View style={styles.listActions}>
-                {hasFilters ? (
-                  <Button
-                    kind="quiet"
-                    label={t("exploreMap.clearAll")}
-                    onPress={() => setFilters(EMPTY_MAP_FILTERS)}
-                  />
-                ) : null}
+              {hasFilters ? (
                 <Button
                   kind="quiet"
-                  label={t("exploreMap.hideList")}
-                  onPress={() => setListOpen(false)}
+                  label={t("exploreMap.clearAll")}
+                  onPress={() => setFilters(EMPTY_MAP_FILTERS)}
                 />
-              </View>
-              {notice ? <Text style={styles.notice}>{notice}</Text> : null}
+              ) : null}
             </View>
           }
           ListEmptyComponent={
@@ -367,13 +365,37 @@ export function PlacesMapScreen({
               divider={index > 0}
               locale={locale}
               place={item}
-              onPress={() => {
+              onOpen={() => onOpen(toContentItem(item))}
+              onShowOnMap={() => {
                 setSelectedId(item.id);
                 setListOpen(false);
               }}
             />
           )}
         />
+        {notice ? (
+          <Text style={[styles.listNotice, floating]}>{notice}</Text>
+        ) : null}
+        {/* Back to the map: a floating pill above the tab bar, where the
+            thumb already is, instead of a link at the top of the list. */}
+        <View
+          pointerEvents="box-none"
+          style={[styles.mapToggleWrap, { bottom: tabBarHeight + 24 }]}
+        >
+          <Pressable
+            accessibilityLabel={t("exploreMap.hideList")}
+            accessibilityRole="button"
+            onPress={() => setListOpen(false)}
+            style={({ pressed }) => [
+              styles.mapToggle,
+              floating,
+              pressed && styles.mapTogglePressed,
+            ]}
+          >
+            <Ionicons color={colors.lime} name="map" size={18} />
+            <Text style={styles.mapToggleText}>{ta(locale, "showMap")}</Text>
+          </Pressable>
+        </View>
       </View>
     );
 
@@ -403,10 +425,7 @@ export function PlacesMapScreen({
         )}
       </View>
       <View style={{ paddingTop: insets.top + topSpace }}>{controls}</View>
-      <View
-        pointerEvents="box-none"
-        style={[styles.bottom, { bottom: tabBarHeight }]}
-      >
+      <View pointerEvents="box-none" style={styles.bottom}>
         <View pointerEvents="box-none" style={styles.locateWrap}>
           {notice ? (
             <Text style={[styles.toast, floating]}>{notice}</Text>
@@ -417,8 +436,11 @@ export function PlacesMapScreen({
             onPress={() => void locate()}
           />
         </View>
-        <View style={[styles.sheet, floating, { paddingBottom: 16 }]}>
-          <View style={styles.handle} />
+        {/* The sheet runs to the bottom of the screen, behind the floating
+            tab bar, so no strip of map shows between them. */}
+        <View
+          style={[styles.sheet, floating, { paddingBottom: tabBarHeight + 4 }]}
+        >
           {selected ? (
             <PlaceSheet
               distance={distanceTo(selected)}
@@ -435,19 +457,25 @@ export function PlacesMapScreen({
               }}
               place={selected}
               total={visible.length}
+              onClose={() => setSelectedId(null)}
             />
           ) : (
             <View style={styles.summary}>
-              <Text style={styles.summaryCount}>
-                {pins.isLoading
-                  ? " "
-                  : t("exploreMap.count", {
-                      count: visible.length,
-                      total: formatNumber(visible.length, locale),
-                    })}
-              </Text>
+              <View style={styles.summaryCopy}>
+                <Text numberOfLines={1} style={styles.summaryCount}>
+                  {pins.isLoading
+                    ? " "
+                    : t("exploreMap.count", {
+                        count: visible.length,
+                        total: formatNumber(visible.length, locale),
+                      })}
+                </Text>
+                <Text numberOfLines={1} style={styles.summaryWhere}>
+                  {governorateLabel}
+                </Text>
+              </View>
               <Button
-                kind="secondary"
+                icon={<Ionicons color={colors.white} name="list" size={18} />}
                 label={t("exploreMap.showList")}
                 onPress={() => setListOpen(true)}
               />
@@ -494,56 +522,78 @@ function PlaceRow({
   distance,
   divider,
   locale,
-  onPress,
+  onOpen,
+  onShowOnMap,
 }: {
   place: MapPlace;
   distance?: number;
   divider: boolean;
   locale: AppLocale;
-  onPress: () => void;
+  onOpen: () => void;
+  onShowOnMap: () => void;
 }) {
   const t = webT(locale);
-  const meta = place.governorate?.name;
+  const where = place.governorate?.name;
+  const away =
+    distance !== undefined
+      ? t("exploreMap.distanceAway", { distance: formatDistance(distance) })
+      : null;
+  // Two buttons side by side, not one inside the other: the row opens the
+  // place, the round button shows it on the map.
   return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.row,
-        divider && styles.divider,
-        pressed && styles.rowPressed,
-      ]}
-    >
-      {place.image ? (
-        <Image source={{ uri: place.image }} style={styles.rowImage} />
-      ) : (
-        <View
-          style={[styles.rowImage, { backgroundColor: colors.primaryTint }]}
-        />
-      )}
-      <View style={styles.rowCopy}>
-        {place.category ? (
-          <Text numberOfLines={1} style={styles.category}>
-            {place.category}
+    <View style={[styles.row, divider && styles.divider]}>
+      <Pressable
+        accessibilityRole="button"
+        onPress={onOpen}
+        style={({ pressed }) => [styles.rowMain, pressed && styles.rowPressed]}
+      >
+        {place.image ? (
+          <Image source={{ uri: place.image }} style={styles.rowImage} />
+        ) : (
+          <View style={[styles.rowImage, styles.rowImageFallback]}>
+            <Ionicons
+              color={colors.primary}
+              name={categoryIonicon(place.categoryIcon)}
+              size={24}
+            />
+          </View>
+        )}
+        <View style={styles.rowCopy}>
+          {place.category ? (
+            <Text numberOfLines={1} style={styles.category}>
+              {place.category}
+            </Text>
+          ) : null}
+          <Text numberOfLines={2} style={styles.rowTitle}>
+            {place.name}
           </Text>
-        ) : null}
-        <Text numberOfLines={2} style={styles.rowTitle}>
-          {place.name}
-        </Text>
-        {meta ? (
-          <Text numberOfLines={1} style={styles.meta}>
-            {meta}
-          </Text>
-        ) : null}
-        {distance !== undefined ? (
-          <Text numberOfLines={1} style={styles.meta}>
-            {t("exploreMap.distanceAway", {
-              distance: formatDistance(distance),
-            })}
-          </Text>
-        ) : null}
-      </View>
-    </Pressable>
+          {where || away ? (
+            <View style={styles.metaRow}>
+              <Ionicons
+                color={colors.muted}
+                name="location-outline"
+                size={13}
+              />
+              <Text numberOfLines={1} style={styles.meta}>
+                {[where, away].filter(Boolean).join(", ")}
+              </Text>
+            </View>
+          ) : null}
+        </View>
+      </Pressable>
+      <Pressable
+        accessibilityLabel={`${ta(locale, "showOnMap")}: ${place.name}`}
+        accessibilityRole="button"
+        hitSlop={6}
+        onPress={onShowOnMap}
+        style={({ pressed }) => [
+          styles.rowMapButton,
+          pressed && styles.rowMapButtonPressed,
+        ]}
+      >
+        <Ionicons color={colors.primary} name="map-outline" size={18} />
+      </Pressable>
+    </View>
   );
 }
 
@@ -555,6 +605,7 @@ function PlaceSheet({
   locale,
   onOpen,
   onStep,
+  onClose,
 }: {
   place: MapPlace;
   distance?: number;
@@ -563,6 +614,8 @@ function PlaceSheet({
   locale: AppLocale;
   onOpen: () => void;
   onStep: (step: 1 | -1) => void;
+  /** Back to the summary, where the list is. */
+  onClose: () => void;
 }) {
   const t = webT(locale);
   const rtl = isRtl(locale);
@@ -619,6 +672,18 @@ function PlaceSheet({
             </Text>
           ) : null}
         </View>
+        <Pressable
+          accessibilityLabel={t("exploreMap.closeCard")}
+          accessibilityRole="button"
+          hitSlop={8}
+          onPress={onClose}
+          style={({ pressed }) => [
+            styles.sheetClose,
+            pressed && styles.rowMapButtonPressed,
+          ]}
+        >
+          <Ionicons color={colors.dark} name="close" size={18} />
+        </Pressable>
       </View>
       <View style={styles.sheetActions}>
         <Button
@@ -720,7 +785,9 @@ const styles = StyleSheet.create({
   },
   pickerOnSunken: { backgroundColor: colors.white },
   pickerText: { ...type.caption, color: colors.dark, flexShrink: 1 },
-  chips: { gap: 8 },
+  // The chips run to the screen edges, so a cut-off chip reads as "more".
+  chipRail: { marginHorizontal: -16 },
+  chips: { gap: 8, paddingHorizontal: 16 },
   menu: {
     alignSelf: "flex-end",
     backgroundColor: colors.white,
@@ -771,24 +838,27 @@ const styles = StyleSheet.create({
     borderTopRightRadius: radius.panel,
     gap: 16,
     paddingHorizontal: gutter,
-    paddingTop: 10,
-  },
-  handle: {
-    alignSelf: "center",
-    backgroundColor: colors.border,
-    borderRadius: 3,
-    height: 5,
-    width: 40,
+    paddingTop: 18,
   },
   summary: {
     alignItems: "center",
     flexDirection: "row",
     justifyContent: "space-between",
   },
+  summaryCopy: { flex: 1, gap: 2 },
   summaryCount: { ...type.item, color: colors.dark },
+  summaryWhere: { ...type.small, color: colors.muted },
   sheetBody: { gap: 16 },
   sheetPlace: { flexDirection: "row", gap: 14 },
   sheetImage: { borderRadius: 16, height: 96, width: 96 },
+  sheetClose: {
+    alignItems: "center",
+    backgroundColor: colors.soft,
+    borderRadius: radius.pill,
+    height: 32,
+    justifyContent: "center",
+    width: 32,
+  },
   sheetTitle: { ...type.section, color: colors.dark },
   sheetActions: { flexDirection: "row", gap: 10 },
   grow: { flex: 1 },
@@ -798,19 +868,28 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   status: { ...type.smallStrong },
-  list: { paddingBottom: 32, paddingHorizontal: gutter },
-  listHeader: { gap: 4, paddingTop: 12 },
-  listActions: {
+  list: { paddingHorizontal: gutter },
+  listHeader: {
     alignItems: "center",
     flexDirection: "row",
-    gap: 8,
-    justifyContent: "flex-end",
-    position: "absolute",
-    right: 0,
-    top: 4,
+    justifyContent: "space-between",
+    minHeight: 48,
+    paddingTop: 8,
   },
-  count: { ...type.item, color: colors.dark, minHeight: 44, paddingTop: 10 },
-  notice: { ...type.small, color: colors.muted, paddingBottom: 8 },
+  count: { ...type.item, color: colors.dark },
+  listNotice: {
+    ...type.small,
+    backgroundColor: colors.white,
+    borderRadius: radius.thumb,
+    color: colors.dark,
+    left: gutter,
+    overflow: "hidden",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    position: "absolute",
+    right: gutter,
+    top: 140,
+  },
   loading: { marginTop: 32 },
   empty: {
     ...type.body,
@@ -821,14 +900,52 @@ const styles = StyleSheet.create({
   row: {
     alignItems: "center",
     flexDirection: "row",
-    gap: 14,
-    paddingVertical: 12,
+    gap: 12,
+    paddingVertical: 10,
   },
   divider: { borderTopColor: colors.border, borderTopWidth: 1 },
-  rowPressed: { backgroundColor: colors.soft },
-  rowImage: { borderRadius: radius.thumb, height: 76, width: 76 },
-  rowCopy: { flex: 1, gap: 3 },
-  category: { ...type.caption, color: colors.primary },
-  rowTitle: { ...type.item, color: colors.dark },
-  meta: { ...type.small, color: colors.muted },
+  rowMain: { alignItems: "center", flex: 1, flexDirection: "row", gap: 12 },
+  rowPressed: { opacity: 0.7 },
+  rowImage: { borderRadius: radius.thumb, height: 60, width: 60 },
+  rowImageFallback: {
+    alignItems: "center",
+    backgroundColor: colors.primaryTint,
+    justifyContent: "center",
+  },
+  rowCopy: { flex: 1, gap: 2 },
+  category: { ...type.caption, color: colors.primary, lineHeight: 16 },
+  rowTitle: {
+    color: colors.dark,
+    fontFamily: fonts.semibold,
+    fontSize: 16,
+    lineHeight: 21,
+  },
+  metaRow: { alignItems: "center", flexDirection: "row", gap: 4 },
+  meta: { ...type.small, color: colors.muted, flexShrink: 1, fontSize: 13 },
+  rowMapButton: {
+    alignItems: "center",
+    backgroundColor: colors.soft,
+    borderRadius: radius.pill,
+    height: 36,
+    justifyContent: "center",
+    width: 36,
+  },
+  rowMapButtonPressed: { backgroundColor: colors.primaryTint },
+  mapToggleWrap: {
+    alignItems: "center",
+    left: 0,
+    position: "absolute",
+    right: 0,
+  },
+  mapToggle: {
+    alignItems: "center",
+    backgroundColor: colors.dark,
+    borderRadius: radius.pill,
+    flexDirection: "row",
+    gap: 8,
+    height: 44,
+    paddingHorizontal: 20,
+  },
+  mapTogglePressed: { opacity: 0.85 },
+  mapToggleText: { ...type.smallStrong, color: colors.white },
 });
