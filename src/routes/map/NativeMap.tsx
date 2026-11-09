@@ -1,7 +1,6 @@
 import type { ReactElement } from "react";
 import { Platform, StyleSheet } from "react-native";
 import Constants, { ExecutionEnvironment } from "expo-constants";
-import { AppleMaps, GoogleMaps } from "expo-maps";
 import { categorySymbol } from "./categoryIcons";
 
 /**
@@ -18,6 +17,14 @@ export const nativeMapsAvailable =
           | undefined
       )?.config?.googleMaps?.apiKey,
     ));
+
+/**
+ * expo-maps is loaded only where it exists: importing it in Expo Go throws
+ * "Cannot find native module 'ExpoMaps'" before the app can start.
+ */
+const maps: typeof import("expo-maps") | null = nativeMapsAvailable
+  ? (require("expo-maps") as typeof import("expo-maps"))
+  : null;
 
 export interface MapPin {
   id: string;
@@ -55,6 +62,8 @@ export function NativeMap({
   const pick = ({ id }: { id?: string }) => {
     if (id) onPick(id);
   };
+  if (!maps) return null;
+  const { AppleMaps, GoogleMaps } = maps;
   if (Platform.OS === "ios")
     return (
       <AppleMaps.View

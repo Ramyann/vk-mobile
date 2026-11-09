@@ -59,6 +59,7 @@ import {
   scheduleSavedEventReminder,
 } from "./lib/notifications";
 import { AppQueryProvider } from "./lib/query-client";
+import { RightToLeft } from "./components/ui/Text";
 import {
   defaultNotificationPreferences,
   getMobileState,
@@ -88,6 +89,12 @@ type NavigationAction = Tab | "assistant";
  * `direction` style; React Native Web ignores it and needs the `dir`
  * attribute, which also gives browsers native right-to-left scrolling.
  */
+/**
+ * Phones read right to left from the `direction` style. It stays out of
+ * StyleSheet.create because React Native Web rejects the property there.
+ */
+const nativeRtl = { direction: "rtl" } as const;
+
 const readingDirection = (rtl: boolean) =>
   Platform.OS === "web" ? ({ dir: rtl ? "rtl" : "ltr" } as object) : {};
 
@@ -133,6 +140,8 @@ function AppShell() {
   // The bar steps aside while the keyboard is up, so it never covers a field.
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   useEffect(() => {
+    // Browsers have no keyboard events here, and the web build has no listener.
+    if (Platform.OS === "web") return;
     const show = Keyboard.addListener(
       Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
       () => setKeyboardOpen(true),
@@ -545,55 +554,57 @@ function AppShell() {
     (onTab && tab === "explore") || Boolean(detail) || panel === "map";
   return (
     <AppQueryProvider>
-      <View
-        style={[
-          styles.root,
-          !edgeToEdge && { paddingTop: insets.top },
-          !showTabs && { paddingBottom: insets.bottom },
-          showTabs && !onTab && { paddingBottom: tabBarHeight },
-        ]}
-      >
-        {edgeToEdge ? null : <StatusBar style="dark" />}
+      <RightToLeft.Provider value={isRtl(locale)}>
         <View
-          {...readingDirection(isRtl(locale))}
           style={[
-            styles.content,
-            isRtl(locale) && Platform.OS !== "web" && styles.rtl,
+            styles.root,
+            !edgeToEdge && { paddingTop: insets.top },
+            !showTabs && { paddingBottom: insets.bottom },
+            showTabs && !onTab && { paddingBottom: tabBarHeight },
           ]}
         >
-          {screen}
-          {/* A place opened from the map or an itinerary sits on top, so going
+          {edgeToEdge ? null : <StatusBar style="dark" />}
+          <View
+            {...readingDirection(isRtl(locale))}
+            style={[
+              styles.content,
+              isRtl(locale) && Platform.OS !== "web" && nativeRtl,
+            ]}
+          >
+            {screen}
+            {/* A place opened from the map or an itinerary sits on top, so going
               back returns to the same filters or the same trip. */}
-          {detailScreen && panel && OVERLAY_PANELS.has(panel) ? (
-            <View style={[StyleSheet.absoluteFill, styles.overlay]}>
-              {detailScreen}
-            </View>
+            {detailScreen && panel && OVERLAY_PANELS.has(panel) ? (
+              <View style={[StyleSheet.absoluteFill, styles.overlay]}>
+                {detailScreen}
+              </View>
+            ) : null}
+          </View>
+          {showTabs ? (
+            <TabBar
+              active={tab}
+              items={navigation}
+              rtl={isRtl(locale)}
+              onPress={(key) => {
+                // A tab always leads back to that tab's top screen.
+                setDetail(null);
+                setBrowseType(null);
+                if (key === "assistant") setPanel("chat");
+                else {
+                  setPanel(null);
+                  setTab(key as Tab);
+                }
+              }}
+            />
           ) : null}
-        </View>
-        {showTabs ? (
-          <TabBar
-            active={tab}
-            items={navigation}
-            rtl={isRtl(locale)}
-            onPress={(key) => {
-              // A tab always leads back to that tab's top screen.
-              setDetail(null);
-              setBrowseType(null);
-              if (key === "assistant") setPanel("chat");
-              else {
-                setPanel(null);
-                setTab(key as Tab);
-              }
-            }}
+          <SearchSheet
+            visible={panel === "search"}
+            locale={locale}
+            onClose={() => setPanel(null)}
+            onOpen={open}
           />
-        ) : null}
-        <SearchSheet
-          visible={panel === "search"}
-          locale={locale}
-          onClose={() => setPanel(null)}
-          onOpen={open}
-        />
-      </View>
+        </View>
+      </RightToLeft.Provider>
     </AppQueryProvider>
   );
 }
@@ -601,6 +612,5 @@ function AppShell() {
 const styles = StyleSheet.create({
   root: { backgroundColor: colors.white, flex: 1 },
   content: { flex: 1 },
-  rtl: { direction: "rtl" },
   overlay: { backgroundColor: colors.white },
 });

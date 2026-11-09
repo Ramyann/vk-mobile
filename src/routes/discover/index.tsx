@@ -4,10 +4,9 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   View,
 } from "react-native";
+import { Text, TextInput } from "../../components/ui/Text";
 import { Ionicons } from "@expo/vector-icons";
 import {
   getDiscoverData,
@@ -106,7 +105,7 @@ export function DiscoverScreen({
         </View>
       </View>
       <View>
-        <Rail rtl={isRtl(locale)} contentContainerStyle={styles.chips}>
+        <Rail contentContainerStyle={styles.chips}>
           {FILTERS.map((option) => (
             <Chip
               key={option.value}

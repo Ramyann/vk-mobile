@@ -3,11 +3,11 @@ import {
   ActivityIndicator,
   Pressable,
   StyleSheet,
-  Text,
   View,
   type StyleProp,
   type ViewStyle,
 } from "react-native";
+import { Text } from "./Text";
 import { colors, radius } from "../../styles/tokens";
 import { type } from "../../styles/typography";
 

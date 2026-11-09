@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { Text } from "./ui/Text";
 import { colors, gutter } from "../styles/tokens";
 import { type } from "../styles/typography";
 import { Button } from "./ui/Button";

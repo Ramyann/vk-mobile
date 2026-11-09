@@ -1,5 +1,6 @@
 import { Fragment } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { Text } from "../ui/Text";
 import { parseChatMarkdown, type InlineRun } from "../../lib/chat-markdown";
 import { colors } from "../../styles/tokens";
 import { fonts, type } from "../../styles/typography";

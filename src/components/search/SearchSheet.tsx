@@ -5,10 +5,9 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   View,
 } from "react-native";
+import { Text, TextInput } from "../ui/Text";
 import type { ContentItem } from "../../api/content";
 import { ContentCard } from "../ContentCard";
 import { t, type AppLocale } from "../../i18n/locale";

@@ -1,4 +1,5 @@
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { FlatList, Pressable, StyleSheet, View } from "react-native";
+import { Text } from "../../components/ui/Text";
 import { Ionicons } from "@expo/vector-icons";
 import type { ContentItem } from "../../api/content";
 import { ContentCard } from "../../components/ContentCard";

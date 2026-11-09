@@ -5,9 +5,9 @@ import {
   ScrollView,
   StyleSheet,
   Switch,
-  Text,
   View,
 } from "react-native";
+import { Text } from "../../components/ui/Text";
 import type { ComponentProps } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import {

@@ -2,16 +2,17 @@ import { useState } from "react";
 import {
   Image,
   ImageBackground,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Text,
   View,
   useWindowDimensions,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from "react-native";
+import { Text } from "../../components/ui/Text";
 import * as Linking from "expo-linking";
 import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
@@ -140,7 +141,7 @@ export function ExploreScreen({
             }
           />
           {data?.destinations.length ? (
-            <Rail rtl={isRtl(locale)} contentContainerStyle={styles.rail}>
+            <Rail contentContainerStyle={styles.rail}>
               {data.destinations.map((item) => (
                 <DestinationCard
                   key={item.id}
@@ -277,7 +278,7 @@ export function ExploreScreen({
                 />
               }
             />
-            <Rail rtl={isRtl(locale)} contentContainerStyle={styles.rail}>
+            <Rail contentContainerStyle={styles.rail}>
               {data.packages.map((item) => (
                 <PackageCard
                   key={item.id}
@@ -324,15 +325,20 @@ function Hero({
         },
       ];
   const onPage = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    // Browsers report a negative offset when scrolling right to left.
-    const page = Math.round(
-      Math.abs(event.nativeEvent.contentOffset.x) / width,
-    );
+    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+    // Right to left, browsers count the offset down from 0 to a negative
+    // number, while phones start at the far end and count down to 0.
+    const offset = !isRtl(locale)
+      ? contentOffset.x
+      : Platform.OS === "web"
+        ? Math.abs(contentOffset.x)
+        : contentSize.width - layoutMeasurement.width - contentOffset.x;
+    const page = Math.round(offset / width);
     setIndex(Math.min(Math.max(page, 0), slides.length - 1));
   };
   return (
     <View style={styles.hero}>
-      <Rail pagingEnabled onMomentumScrollEnd={onPage} rtl={isRtl(locale)}>
+      <Rail pagingEnabled onMomentumScrollEnd={onPage}>
         {slides.map((banner) => (
           <ImageBackground
             key={banner.id}

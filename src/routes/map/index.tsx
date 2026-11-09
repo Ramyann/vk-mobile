@@ -7,10 +7,9 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   View,
 } from "react-native";
+import { Text, TextInput } from "../../components/ui/Text";
 import * as Location from "expo-location";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
@@ -248,7 +247,6 @@ export function PlacesMapScreen({
         </View>
       </View>
       <Rail
-        rtl={isRtl(locale)}
         contentContainerStyle={styles.chips}
         keyboardShouldPersistTaps="handled"
       >

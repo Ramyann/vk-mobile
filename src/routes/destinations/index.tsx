@@ -1,4 +1,5 @@
-import { FlatList, StyleSheet, Text, View } from "react-native";
+import { FlatList, StyleSheet, View } from "react-native";
+import { Text } from "../../components/ui/Text";
 import { type ContentItem, type ContentType } from "../../api/content";
 import { ContentCard } from "../../components/ContentCard";
 import { EmptyState } from "../../components/EmptyState";

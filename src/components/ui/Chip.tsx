@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text } from "react-native";
+import { Pressable, StyleSheet } from "react-native";
+import { Text } from "./Text";
 import { colors, radius } from "../../styles/tokens";
 import { type } from "../../styles/typography";
 

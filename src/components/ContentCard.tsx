@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, StyleSheet, View } from "react-native";
+import { Text } from "./ui/Text";
 import type { ContentItem, ContentType } from "../api/content";
 import type { AppLocale } from "../i18n/locale";
 import { shortDate } from "../lib/dates";

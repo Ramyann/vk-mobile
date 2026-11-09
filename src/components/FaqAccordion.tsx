@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
+import { Text } from "./ui/Text";
 import type { FaqItem } from "../api/content";
 import { colors, radius } from "../styles/tokens";
 import { fonts } from "../styles/typography";

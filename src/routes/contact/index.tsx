@@ -4,10 +4,10 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
   TextInput,
   View,
 } from "react-native";
+import { Text } from "../../components/ui/Text";
 import { getFaqs, type FaqItem } from "../../api/content";
 import { FaqAccordion } from "../../components/FaqAccordion";
 import { submitContactInquiry, type ContactDraft } from "../../api/contact";

@@ -1,4 +1,5 @@
-import { Linking, ScrollView, StyleSheet, Text } from "react-native";
+import { Linking, ScrollView, StyleSheet } from "react-native";
+import { Text } from "../../components/ui/Text";
 import { MenuGroup, MenuRow } from "../../components/ui/MenuRow";
 import {
   isRtl,
